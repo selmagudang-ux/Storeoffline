@@ -647,7 +647,7 @@ function render(){
   app.innerHTML=`<header class="top"><div class="wrap"><div class="brand"><h1>Stok Opname</h1><small>${S.products.length?fmt(S.products.length)+' produk · ':''}${storageOK?'tersimpan di browser ini':'penyimpanan tidak tersedia'}</small></div>
     <nav class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${t[0]===ui.tab}" data-act="tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav></div></header>
     <div class="wrap"><main>${storageOK?'':'<div class="banner">Browser tidak mengizinkan penyimpanan, jadi data hilang jika halaman ditutup. Gunakan Export & backup setelah bekerja.</div>'}${view()}</main></div>`;
-  if(ui.tab==='stok'||ui.tab==='opname'||ui.tab==='rak'||ui.tab==='jual'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan|rkq|jscan|jnote)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
+  if(ui.tab==='stok'||ui.tab==='opname'||ui.tab==='rak'||ui.tab==='jual'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan|rkq|jscan|jnote|jdisc)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
 }
 
 /* ====================== export builders ====================== */
@@ -947,13 +947,15 @@ document.addEventListener('input',e=>{const t=e.target;
 
 /* ====================== penjualan manual (kurangi stok) ====================== */
 const CART=()=>S.cart||(S.cart=[]);
-Object.assign(ui,{jq:'',jmsg:null,jnote:''});
+Object.assign(ui,{jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
+function jualTot(C){const sub=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0),v=Math.max(0,+ui.jdv||0);
+  const dis=Math.round(ui.jdt==='pct'?sub*Math.min(v,100)/100:Math.min(v,sub));return{sub,dis,total:sub-dis}}
 function jualAdd(k,q){const c=CART().find(x=>x.k===k);if(c)c.qty+=q;else CART().push({k,qty:q});persist()}
 function vJual(){
   if(!S.products.length)return vRingkasan();
   const C=CART().filter(c=>IDX.has(c.k)),m=ui.jmsg,q=norm(ui.jq);
   const cand=q&&q.length>=2?S.products.filter(p=>norm(p.sku).includes(q)||norm(p.name).includes(q)).slice(0,8):[];
-  const tot=C.reduce((a,c)=>a+c.qty,0),val=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0);
+  const tot=C.reduce((a,c)=>a+c.qty,0),T=jualTot(C);
   return`<div class="card"><header><div><h2>Penjualan</h2><p>Ketik atau scan SKU lalu Enter untuk menambah ke daftar. Setelah disimpan, stok berkurang dan tercatat di Riwayat (bisa dibatalkan). Untuk banyak transaksi sekaligus, pakai Import → penjualan.</p></div></header>
   <div class="row"><input type="text" id="jscan" class="grow" placeholder="Ketik / scan SKU atau nama, tekan Enter" value="${esc(ui.jq)}" autocomplete="off" aria-label="SKU penjualan"><label class="row small">Jumlah <input type="number" id="jqty" value="1" min="1"></label></div>
   ${m?`<div class="scanres ${m.err?'bad':''}" role="status">${m.err?`SKU “${esc(m.err)}” tidak ditemukan.`:`<b>${esc(m.p.name)}</b><span class="mono">${esc(m.p.sku)}</span><span>Stok ${fmt(m.p.stock)} · Rak: ${rkText(m.p)}</span>`}</div>`:''}
@@ -964,21 +966,25 @@ function vJual(){
     <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Belum ada barang di daftar penjualan.</td></tr>'}
   </tbody></table></div>
   <div class="row"><input type="text" id="jnote" class="grow" placeholder="Catatan / no. nota (opsional)" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
-  <div class="stats"><div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Nilai jual</span><b>${rp(val)}</b></div></div>
+  <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
+    <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>
+  <div class="stats"><div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Subtotal</span><b>${rp(T.sub)}</b></div>
+    <div><span>Diskon</span><b class="${T.dis?'neg':''}">${T.dis?'-':''}${rp(T.dis)}</b></div><div><span>Total bayar</span><b>${rp(T.total)}</b></div></div>
   <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`;
 }
 function jualSave(){
   const C=CART().filter(c=>IDX.has(c.k));if(!C.length)return;
   const changes=[];let pcs=0;
   for(const c of C){const p=S.products[IDX.get(c.k)];p.stock-=c.qty;pcs+=c.qty;changes.push({k:c.k,d:-c.qty})}
-  const note=ui.jnote.trim();
-  addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual`});
-  S.cart=[];ui.jmsg=null;ui.jq='';ui.jnote='';toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`);persist();render();
+  const note=ui.jnote.trim(),T=jualTot(C);
+  addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual · Subtotal ${rp(T.sub)}`+(T.dis?` · Diskon ${rp(T.dis)}`+(ui.jdt==='pct'?` (${+ui.jdv}%)`:''):'')+` · Total ${rp(T.total)}`,subtotal:T.sub,diskon:T.dis,total:T.total});
+  S.cart=[];ui.jmsg=null;ui.jq='';ui.jnote='';ui.jdv=0;toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`);persist();render();
 }
 Object.assign(ACT,{
   'jual-pick':d=>{const p=S.products[IDX.get(d.k)];jualAdd(d.k,Math.max(1,Math.floor(+$('#jqty').value||1)));ui.jmsg={p};ui.jq='';render();$('#jscan').focus()},
   'jual-del':d=>{S.cart=CART().filter(c=>c.k!==d.k);persist();render()},
-  'jual-clear':()=>{S.cart=[];ui.jmsg=null;persist();render()},
+  'jual-dt':d=>{ui.jdt=d.v;render()},
+  'jual-clear':()=>{S.cart=[];ui.jmsg=null;ui.jdv=0;persist();render()},
   'jual-save':jualSave
 });
 document.addEventListener('keydown',e=>{
@@ -992,6 +998,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('input',e=>{const t=e.target;
   if(t.classList.contains('jq')){const c=CART().find(x=>x.k===t.dataset.k);if(c){c.qty=Math.max(1,Math.floor(+t.value||1));persist()}}
   else if(t.id==='jnote')ui.jnote=t.value;
+  else if(t.id==='jdisc'){ui.jdv=Math.max(0,+t.value||0);render()}
   else if(t.id==='jscan'){clearTimeout(qT);qT=setTimeout(()=>{ui.jq=t.value;ui.jmsg=null;render()},250)}});
 document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render()});
 
