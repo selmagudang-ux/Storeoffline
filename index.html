@@ -972,7 +972,7 @@ function vJual(){
   <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
     <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>
   <div class="stats" id="jstats">${jStats()}</div>
-  <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`;
+  <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`+vJualHist();
 }
 function jualSave(){
   const C=CART().filter(c=>IDX.has(c.k));if(!C.length)return;
@@ -1003,6 +1003,46 @@ document.addEventListener('input',e=>{const t=e.target;
   else if(t.id==='jdisc'){ui.jdv=Math.max(0,+t.value||0);const e=$('#jstats');if(e)e.innerHTML=jStats()}
   else if(t.id==='jscan'){clearTimeout(qT);qT=setTimeout(()=>{ui.jq=t.value;ui.jmsg=null;render()},250)}});
 document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render()});
+
+/* ====================== riwayat penjualan per periode ====================== */
+Object.assign(ui,{hpMode:'hari',hpM:''});
+const dKey=ts=>{const d=new Date(ts),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())};
+const dLab=k=>k.length===7?new Date(k+'-01T00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'}):new Date(k+'T00:00').toLocaleDateString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+function jualTx(){
+  return S.logs.filter(l=>l.type==='penjualan'&&!l.undone).map(l=>{
+    const pcs=(l.changes||[]).reduce((a,c)=>a-c.d,0);
+    const sub=l.subtotal!==undefined?l.subtotal:(l.changes||[]).reduce((a,c)=>{const p=S.products[IDX.get(c.k)];return a-c.d*(p?p.sell:0)},0);
+    const dis=l.diskon||0;
+    return{l,ts:l.ts,pcs,sub,dis,total:l.total!==undefined?l.total:sub-dis,est:l.subtotal===undefined}});
+}
+function hpGroups(){
+  const all=jualTx(),months=[...new Set(all.map(t=>dKey(t.ts).slice(0,7)))].sort().reverse();
+  if(ui.hpM&&!months.includes(ui.hpM))ui.hpM='';
+  const tx=ui.hpMode==='hari'&&ui.hpM?all.filter(t=>dKey(t.ts).startsWith(ui.hpM)):all;
+  const m=new Map();
+  for(const t of tx){const k=ui.hpMode==='bulan'?dKey(t.ts).slice(0,7):dKey(t.ts);
+    const g=m.get(k)||m.set(k,{k,n:0,pcs:0,sub:0,dis:0,total:0,est:false,tx:[]}).get(k);
+    g.n++;g.pcs+=t.pcs;g.sub+=t.sub;g.dis+=t.dis;g.total+=t.total;g.est=g.est||t.est;g.tx.push(t)}
+  return{months,list:[...m.values()].sort((a,b)=>a.k<b.k?1:-1)};
+}
+function vJualHist(){
+  const{months,list}=hpGroups(),T=list.reduce((a,g)=>({n:a.n+g.n,pcs:a.pcs+g.pcs,sub:a.sub+g.sub,dis:a.dis+g.dis,total:a.total+g.total}),{n:0,pcs:0,sub:0,dis:0,total:0});
+  const est=list.some(g=>g.est);
+  return`<div class="card"><header><div><h2>Riwayat penjualan</h2><p>Penjualan yang sudah disimpan, dikelompokkan per periode. Penjualan yang dibatalkan tidak dihitung.</p></div>
+    <div class="row"><span class="seg"><button data-act="hp-mode" data-v="hari" aria-pressed="${ui.hpMode==='hari'}">Per hari</button><button data-act="hp-mode" data-v="bulan" aria-pressed="${ui.hpMode==='bulan'}">Per bulan</button></span>
+    ${ui.hpMode==='hari'?`<select id="hpm" aria-label="Bulan"><option value="">Semua bulan</option>${months.map(m=>`<option value="${m}" ${m===ui.hpM?'selected':''}>${esc(dLab(m))}</option>`).join('')}</select>`:''}
+    <button class="btn" data-act="exp-hp" ${list.length?'':'disabled'}>Unduh Excel</button></div></header>
+  ${list.length?`<div class="tablebox"><table><thead><tr><th>Periode</th><th class="num">Transaksi</th><th class="num">Pcs</th><th class="num">Subtotal</th><th class="num">Diskon</th><th class="num">Total</th></tr></thead><tbody>
+  ${list.map(g=>`<tr><td><details><summary>${esc(dLab(g.k))}</summary><div class="small" style="padding:6px 0">${g.tx.sort((a,b)=>b.ts-a.ts).map(t=>`<div style="padding:4px 0;border-top:1px solid var(--line)"><b>${esc(t.l.label)}</b> · <span class="muted">${fmtTime(t.ts)}</span><br>${fmt(t.pcs)} pcs · ${rp(t.total)}${t.dis?` (diskon ${rp(t.dis)})`:''}${t.l.file?' · '+esc(t.l.file):''}<br><span class="muted">${(t.l.changes||[]).slice(0,12).map(c=>{const p=S.products[IDX.get(c.k)];return esc(p?p.sku:c.k)+' ×'+fmt(-c.d)}).join(', ')}${(t.l.changes||[]).length>12?' …':''}</span></div>`).join('')}</div></details></td>
+    <td class="num">${fmt(g.n)}</td><td class="num">${fmt(g.pcs)}</td><td class="num">${rp(g.sub)}</td><td class="num">${g.dis?'-'+rp(g.dis):rp(0)}</td><td class="num"><b>${rp(g.total)}</b></td></tr>`).join('')}
+  </tbody><tfoot><tr><td>Total</td><td class="num">${fmt(T.n)}</td><td class="num">${fmt(T.pcs)}</td><td class="num">${rp(T.sub)}</td><td class="num">${T.dis?'-'+rp(T.dis):rp(0)}</td><td class="num">${rp(T.total)}</td></tr></tfoot></table></div>
+  ${est?'<p class="muted small">Penjualan hasil import file tidak menyimpan harga, jadi nilainya dihitung dari harga jual produk saat ini.</p>':''}`:'<p class="muted">Belum ada penjualan tersimpan.</p>'}</div>`;
+}
+Object.assign(ACT,{
+  'hp-mode':d=>{ui.hpMode=d.v;render()},
+  'exp-hp':()=>{const{list}=hpGroups();saveXlsx(`riwayat-penjualan-${ui.hpMode}-${stamp()}.xlsx`,[{name:'Penjualan',widths:[22,12,10,16,16,16],rows:[['Periode','Transaksi','Pcs','Subtotal','Diskon','Total'],...list.map(g=>[dLab(g.k),g.n,g.pcs,g.sub,g.dis,g.total])]}])}
+});
+document.addEventListener('change',e=>{if(e.target.id==='hpm'){ui.hpM=e.target.value;render()}});
 
 /* ====================== events ====================== */
 document.addEventListener('click',e=>{
