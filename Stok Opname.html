@@ -1,0 +1,914 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Stok Opname</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=DM+Mono:wght@400;500&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout: sticky header + scrollable tab strip, one working column (max 1100px); tables scroll inside their own box.
+   Tokens: jade accent on green-grey neutrals; semantic good/warn/bad kept apart from the accent. */
+:root{
+  --bg:#F3F6F4; --surface:#FFFFFF; --surface2:#E9EFEC; --ink:#14201D; --muted:#566660; --line:#D3DDD8;
+  --accent:#0E6E5C; --accent-ink:#FFFFFF; --accent-soft:#D6EEE7;
+  --good:#1C7A3B; --good-soft:#DDF1E3; --warn:#8F5A00; --warn-soft:#FBEBCB; --bad:#B3261E; --bad-soft:#FADAD6;
+  --font-display:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --font-body:'Instrument Sans','Segoe UI',system-ui,sans-serif;
+  --font-mono:'DM Mono',ui-monospace,Menlo,Consolas,monospace;
+  --r:8px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1412; --surface:#15221F; --surface2:#1D2E2A; --ink:#E5EEEB; --muted:#93A59F; --line:#2A3C37;
+  --accent:#3CC9A6; --accent-ink:#04221A; --accent-soft:#16382F;
+  --good:#5BD08A; --good-soft:#163524; --warn:#E8B04A; --warn-soft:#3A2D10; --bad:#FF8F85; --bad-soft:#3D1B18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1412; --surface:#15221F; --surface2:#1D2E2A; --ink:#E5EEEB; --muted:#93A59F; --line:#2A3C37;
+  --accent:#3CC9A6; --accent-ink:#04221A; --accent-soft:#16382F;
+  --good:#5BD08A; --good-soft:#163524; --warn:#E8B04A; --warn-soft:#3A2D10; --bad:#FF8F85; --bad-soft:#3D1B18; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:14px;line-height:1.45;padding-inline:16px;padding-block:0}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h2{font-size:1.25rem} h3{font-size:1rem}
+p{margin:0}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1100px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:14px 0;border-bottom:1px solid var(--line);margin-inline:-16px;padding-inline:16px}
+header.top .wrap{display:flex;flex-direction:column;gap:10px}
+.brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.brand h1{font-size:1.5rem}
+.brand small{color:var(--muted)}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin}
+nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--accent)}
+nav.tabs button:hover{color:var(--ink)}
+main{padding-block:20px 60px;display:flex;flex-direction:column;gap:20px}
+.banner{padding:10px 12px;border-radius:var(--r);background:var(--warn-soft);color:var(--warn);font-weight:500}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.card>header p{color:var(--muted);margin-top:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;min-width:0}
+.tile span{color:var(--muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}
+.tile b{display:block;font-family:var(--font-display);font-size:1.7rem;margin-top:4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:8px 14px;cursor:pointer;font-weight:500}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn.ghost{border-color:transparent;background:none;color:var(--accent)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+input[type=text],input[type=search],input[type=number],select{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:8px 10px;min-width:0}
+input[type=number]{width:96px;text-align:right;font-variant-numeric:tabular-nums}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+th{background:var(--surface2);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+th.sort{cursor:pointer;user-select:none}
+th.sort:hover{color:var(--ink)}
+.num{text-align:right}
+td.name{white-space:normal;min-width:220px}
+.mono{font-family:var(--font-mono);font-size:.85rem}
+tfoot td{font-weight:600;background:var(--surface2)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:.75rem;font-weight:600;letter-spacing:.03em}
+.pill.good{background:var(--good-soft);color:var(--good)} .pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)} .pill.neutral{background:var(--surface2);color:var(--muted)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.pos{color:var(--good);font-weight:600} .neg{color:var(--bad);font-weight:600}
+.drop{border:2px dashed var(--line);border-radius:var(--r);padding:22px;text-align:center;cursor:pointer;display:block;color:var(--muted)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+.drop input{display:none}
+.drop b{color:var(--ink)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.seg button{background:var(--surface);border:0;padding:8px 14px;cursor:pointer;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 12px;cursor:pointer;font-size:.85rem}
+.chip[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.maps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.maps label{display:flex;flex-direction:column;gap:4px;font-weight:500}
+.maps label small{color:var(--muted);font-weight:400}
+.radio{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);cursor:pointer}
+.radio:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.radio input{margin-top:3px}
+.radio small{display:block;color:var(--muted)}
+.stats{display:flex;gap:18px;flex-wrap:wrap}
+.stats div{display:flex;flex-direction:column}
+.stats span{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+.stats b{font-family:var(--font-display);font-size:1.25rem;font-variant-numeric:tabular-nums}
+.confirm{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--bad-soft);color:var(--bad);padding:10px 12px;border-radius:var(--r);font-weight:500}
+.empty{text-align:center;padding:36px 16px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.empty p{color:var(--muted);max-width:52ch}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+details summary{cursor:pointer;color:var(--accent);font-weight:500}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:var(--r);z-index:20;max-width:calc(100vw - 32px);box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.scanres{padding:10px 12px;border-radius:var(--r);background:var(--accent-soft);display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.scanres.bad{background:var(--bad-soft);color:var(--bad)}
+.log{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.log:last-child{border-bottom:0}
+.log.undone{opacity:.55}
+.log .grow b{display:block}
+@media (prefers-reduced-motion:no-preference){.btn,.chip,nav.tabs button{transition:background .12s,border-color .12s,color .12s}}
+</style>
+<div id="app"></div>
+<script>
+'use strict';
+/* ====================== util ====================== */
+const $=(s,r=document)=>r.querySelector(s);
+const nfID=new Intl.NumberFormat('id-ID');
+const fmt=n=>nfID.format(Math.round(n||0));
+const rp=n=>(n<0?'-Rp ':'Rp ')+nfID.format(Math.abs(Math.round(n||0)));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const norm=s=>String(s??'').trim().toLowerCase().replace(/\s+/g,' ');
+const modelKey=name=>norm(String(name||'').replace(/\s+-\s+.*$/,''));
+const colLetter=i=>{let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26)}return s};
+const colIndex=ref=>{const m=/^[A-Z]+/i.exec(ref)[0].toUpperCase();let n=0;for(const ch of m)n=n*26+ch.charCodeAt(0)-64;return n-1};
+function toNum(v){
+  if(typeof v==='number')return isFinite(v)?v:NaN;
+  if(v==null)return NaN;
+  let s=String(v).replace(/rp/ig,'').replace(/\s/g,'');
+  if(!s||!/\d/.test(s))return NaN;
+  const neg=/^\(.*\)$/.test(s)||s.startsWith('-');
+  s=s.replace(/[^\d.,]/g,'');
+  const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+  if(lc>=0&&ld>=0){const dec=Math.max(lc,ld);s=s.slice(0,dec).replace(/[.,]/g,'')+'.'+s.slice(dec+1)}
+  else if(lc>=0||ld>=0){const sep=lc>=0?',':'.';const parts=s.split(sep);
+    if(parts.length>2||(parts.length===2&&parts[1].length===3))s=parts.join('');else s=parts.join('.')}
+  const n=parseFloat(s);return isNaN(n)?NaN:(neg?-n:n);
+}
+let toastT;
+function toast(msg){let t=$('.toast');if(!t){t=document.createElement('div');t.className='toast';t.setAttribute('role','status');document.body.appendChild(t)}
+  t.textContent=msg;clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),3800)}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fmtTime=ts=>new Date(ts).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+
+/* ====================== xlsx reader (tanpa library) ====================== */
+const TD=new TextDecoder(),TE=new TextEncoder();
+async function inflateRaw(u8){
+  const s=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(s).arrayBuffer());
+}
+async function unzip(buf){
+  const u8=new Uint8Array(buf),dv=new DataView(buf);
+  let e=u8.length-22;while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('File ini bukan Excel (.xlsx) yang valid.');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const files={};
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csize=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    files[TD.decode(u8.subarray(p+46,p+46+nl))]={method,csize,off};p+=46+nl+xl+cl;
+  }
+  return{names:files,async get(name){
+    const f=files[name];if(!f)return null;
+    const nl=dv.getUint16(f.off+26,true),xl=dv.getUint16(f.off+28,true),st=f.off+30+nl+xl;
+    const d=u8.subarray(st,st+f.csize);
+    return f.method===0?d:f.method===8?await inflateRaw(d):null;
+  }};
+}
+async function readXlsx(file){
+  const z=await unzip(await file.arrayBuffer());
+  const dom=s=>new DOMParser().parseFromString(s,'application/xml');
+  const txt=async n=>{const d=await z.get(n);return d?TD.decode(d):null};
+  const wbx=await txt('xl/workbook.xml');if(!wbx)throw new Error('File ini bukan Excel (.xlsx) yang valid.');
+  const wb=dom(wbx),rels=dom(await txt('xl/_rels/workbook.xml.rels')||'<r/>');
+  const relMap={};for(const r of rels.getElementsByTagNameNS('*','Relationship'))relMap[r.getAttribute('Id')]=r.getAttribute('Target');
+  const sheets=[...wb.getElementsByTagNameNS('*','sheet')].map(el=>{
+    const rid=el.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id')||el.getAttribute('r:id');
+    let t=relMap[rid]||'';t=t.startsWith('/')?t.slice(1):'xl/'+t;return{name:el.getAttribute('name'),path:t}});
+  let ss=[];const sst=await txt('xl/sharedStrings.xml');
+  if(sst){for(const si of dom(sst).getElementsByTagNameNS('*','si')){
+    let s='';for(const t of si.getElementsByTagNameNS('*','t'))if(t.parentNode.localName!=='rPh')s+=t.textContent;ss.push(s)}}
+  return{sheets:sheets.map(s=>s.name),async rows(i){
+    const x=await txt(sheets[i].path);if(!x)return[];
+    const d=dom(x),out=[];let auto=-1;
+    for(const row of d.getElementsByTagNameNS('*','row')){
+      const rn=row.getAttribute('r')?parseInt(row.getAttribute('r'))-1:++auto;auto=rn;let cn=-1;
+      for(const c of row.getElementsByTagNameNS('*','c')){
+        const ref=c.getAttribute('r');const ci=ref?colIndex(ref):++cn;cn=ci;
+        const t=c.getAttribute('t');let v=null;
+        const ve=[...c.children].find(k=>k.localName==='v');
+        if(t==='inlineStr'){v=[...c.getElementsByTagNameNS('*','t')].map(k=>k.textContent).join('')}
+        else if(ve){const raw=ve.textContent;
+          if(t==='s')v=ss[+raw];else if(t==='b')v=raw==='1';else if(t==='str')v=raw;else if(t==='e')v=null;
+          else{const nv=Number(raw);v=raw!==''&&!isNaN(nv)?nv:raw}}
+        if(v!==null){(out[rn]=out[rn]||[])[ci]=v}
+      }
+    }
+    return Array.from(out,r=>r?Array.from(r,x=>x===undefined?null:x):[]);
+  }};
+}
+function parseCsv(text){
+  text=text.replace(/^﻿/,'');
+  const first=text.split(/\r?\n/)[0]||'';
+  const delim=[',',';','\t'].map(d=>[d,first.split(d).length]).sort((a,b)=>b[1]-a[1])[0][0];
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){const ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}else cur+=ch}
+    else if(ch==='"')q=true;else if(ch===delim){row.push(cur);cur=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;row.push(cur);rows.push(row);row=[];cur=''}
+    else cur+=ch}
+  if(cur!==''||row.length){row.push(cur);rows.push(row)}
+  return rows.map(r=>r.map(c=>c===''?null:c));
+}
+async function openTable(file){
+  if(/\.csv$/i.test(file.name)){const rows=parseCsv(await file.text());return{sheets:['CSV'],rows:async()=>rows}}
+  if(/\.xls$/i.test(file.name))throw new Error('Format .xls lama belum didukung. Simpan ulang sebagai .xlsx atau .csv.');
+  return readXlsx(file);
+}
+
+/* ====================== xlsx writer ====================== */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+const crc32=u8=>{let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC[(c^u8[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0};
+function zipStore(files){
+  const parts=[],cd=[];let off=0;
+  for(const[name,data]of files){
+    const nb=TE.encode(name),crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true);lh.setUint16(12,0x21,true);lh.setUint32(14,crc,true);lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,nb.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nb,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,0,true);ch.setUint16(14,0x21,true);ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,nb.length,true);ch.setUint32(42,off,true);
+    cd.push(new Uint8Array(ch.buffer),nb);off+=30+nb.length+data.length;
+  }
+  const cdLen=cd.reduce((a,b)=>a+b.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cdLen,true);end.setUint32(16,off,true);
+  return new Blob([...parts,...cd,new Uint8Array(end.buffer)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+}
+const xe=s=>String(s).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function buildXlsx(sheets){
+  const files=[];const add=(n,s)=>files.push([n,TE.encode(s)]);
+  add('[Content_Types].xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'+sheets.map((_,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')+'</Types>');
+  add('_rels/.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+  add('xl/workbook.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${xe(s.name.replace(/[\[\]:*?\/\\]/g,' ').slice(0,31))}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')+'</sheets></workbook>');
+  add('xl/_rels/workbook.xml.rels','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((_,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')+`<Relationship Id="rId${sheets.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  add('xl/styles.xml','<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="10"/><name val="Arial"/></font><font><b/><sz val="10"/><name val="Arial"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFC9DAF8"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs></styleSheet>');
+  sheets.forEach((s,i)=>{
+    const w=s.widths||[];
+    let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>';
+    if(w.length)x+='<cols>'+w.map((v,j)=>`<col min="${j+1}" max="${j+1}" width="${v}" customWidth="1"/>`).join('')+'</cols>';
+    x+='<sheetData>';
+    s.rows.forEach((r,ri)=>{
+      x+=`<row r="${ri+1}">`;
+      r.forEach((v,ci)=>{
+        if(v===null||v===undefined||v==='')return;
+        const ref=colLetter(ci)+(ri+1),st=ri===0?' s="1"':'';
+        if(typeof v==='number')x+=`<c r="${ref}"${ri===0?st:' s="2"'}><v>${v}</v></c>`;
+        else x+=`<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+      });
+      x+='</row>';
+    });
+    add(`xl/worksheets/sheet${i+1}.xml`,x+'</sheetData></worksheet>');
+  });
+  return zipStore(files);
+}
+async function saveFile(filename,blob){
+  let dl=null;
+  try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){dl=null}
+  if(dl){
+    try{await dl.save({filename,data:blob});toast('File disimpan: '+filename)}
+    catch(e){toast(e&&e.code==='declined'?'Penyimpanan dibatalkan.':'File tidak bisa disimpan dari sini ('+((e&&e.code)||'error')+').')}
+    return;
+  }
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);toast('File diunduh: '+filename);
+}
+const saveXlsx=(name,sheets)=>saveFile(name,buildXlsx(sheets));
+
+/* ====================== state & storage ====================== */
+let S={products:[],logs:[],opname:{counts:{},scope:'',ts:null},meta:{lastBackup:null}};
+let IDX=new Map();
+let storageOK=true,saveT=null;
+const reindex=()=>{IDX=new Map(S.products.map((p,i)=>[p.k,i]))};
+const idb={
+  open(){return new Promise((res,rej)=>{const r=indexedDB.open('stok-opname',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})},
+  async get(k){const db=await this.open();return new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)})},
+  async set(k,v){const db=await this.open();return new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)})}
+};
+function persist(now){
+  clearTimeout(saveT);
+  const go=async()=>{try{await idb.set('state',S);if(!storageOK){storageOK=true;render()}}catch(e){if(storageOK){storageOK=false;render()}}};
+  if(now)return go();saveT=setTimeout(go,300);
+}
+async function loadState(){
+  try{const v=await idb.get('state');if(v&&Array.isArray(v.products)){S=Object.assign(S,v);S.opname=S.opname||{counts:{},scope:'',ts:null};S.meta=S.meta||{}}}
+  catch(e){storageOK=false}
+  S.map=S.map||JSON.parse(JSON.stringify(MAPD));S.pending=S.pending||[];S.periode=S.periode||'';S.bcLast=S.bcLast||{};reindex();
+}
+async function snapshotPrev(label){
+  try{await idb.set('prev',{ts:Date.now(),label,products:S.products,logs:S.logs,opname:S.opname});hasPrev={ts:Date.now(),label}}catch(e){}
+}
+let hasPrev=null;
+async function loadPrev(){try{const v=await idb.get('prev');if(v)hasPrev={ts:v.ts,label:v.label}}catch(e){}}
+function addLog(entry){S.logs.unshift(Object.assign({id:uid(),ts:Date.now()},entry))}
+
+/* ====================== derived ====================== */
+function summary(){
+  let pcs=0,hpp=0,active=0;const models=new Set();const groups=new Map();
+  for(const p of S.products){
+    const g=groups.get(p.group)||{group:p.group,models:new Set(),qty:0,hpp:0,skus:0};groups.set(p.group,g);
+    g.skus++;
+    models.add(p.group+'|'+modelKey(p.name));g.models.add(modelKey(p.name));
+    if(p.stock>0){pcs+=p.stock;hpp+=p.stock*p.buy;active++;g.qty+=p.stock;g.hpp+=p.stock*p.buy}
+  }
+  const list=[...groups.values()].sort((a,b)=>a.group.toLowerCase()<b.group.toLowerCase()?-1:1);
+  return{pcs,hpp,active,models:models.size,groups:list};
+}
+
+/* ====================== UI state ====================== */
+const ui={tab:'ringkasan',imp:'awal',q:'',gf:'',sf:'all',sort:{k:null,d:1},page:0,opq:'',opGroup:'',opFilter:'all',opPage:0,opZero:false,confirm:null,lastScan:null,busy:null};
+const IMP={awal:null,jual:null};
+const FIELDS={
+  awal:[
+    {k:'sku',label:'SKU',req:true,alias:['sku','kode','kode barang','barcode']},
+    {k:'name',label:'Nama produk',req:true,alias:['product','nama produk','nama barang','produk','nama','item']},
+    {k:'group',label:'Group / kategori',alias:['group','grup','kategori','sub kategori']},
+    {k:'stock',label:'Stok',req:true,alias:['stock','stok','qty','jumlah']},
+    {k:'buy',label:'Harga beli (HPP)',alias:['buy price','harga beli','hpp','modal']},
+    {k:'sell',label:'Harga jual',alias:['sell price pos','sell price','harga jual','harga']},
+    {k:'bc',label:'Barcode (opsional)',alias:['barcode','kode barcode']}],
+  jual:[
+    {k:'sku',label:'SKU',req:true,alias:['sku','kode','kode barang','barcode','item code']},
+    {k:'qty',label:'Jumlah terjual',req:true,alias:['qty','quantity','jumlah','terjual','qty sold','jml','item qty']},
+    {k:'name',label:'Nama produk (cadangan jika SKU kosong)',alias:['product','nama produk','nama barang','produk','nama','item name','item']}]
+};
+function detectMap(headers,fields){
+  const map={},used=new Set();
+  const nh=headers.map(norm);
+  for(const f of fields){let i=-1;
+    for(const a of f.alias){i=nh.findIndex((h,x)=>h===a&&!used.has(x));if(i>=0)break}
+    if(i<0)for(const a of f.alias){i=nh.findIndex((h,x)=>!used.has(x)&&!h.startsWith('total')&&h.includes(a));if(i>=0)break}
+    map[f.k]=i;if(i>=0)used.add(i)}
+  return map;
+}
+function prepRows(rows){
+  let hr=rows.findIndex(r=>r&&r.filter(c=>c!==null&&c!=='').length>=2);if(hr<0)hr=0;
+  const width=Math.max(0,...rows.slice(hr,hr+50).map(r=>(r||[]).length));
+  const headers=Array.from({length:width},(_,i)=>{const v=rows[hr]&&rows[hr][i];return v!==null&&v!==undefined&&String(v).trim()?String(v).trim():'Kolom '+colLetter(i)});
+  return{hr,headers,data:rows.slice(hr+1).filter(r=>r&&r.some(c=>c!==null&&c!==''))};
+}
+async function pickFile(kind,file){
+  if(!file)return;
+  try{
+    const t=await openTable(file);const rows=await t.rows(0);
+    const imp={kind,file:{name:file.name,size:file.size},table:t,sheet:0,rows,mode:'ganti',update:false};
+    applySheet(imp);IMP[kind]=imp;ui.confirm=null;render();
+  }catch(e){toast(e.message||'File tidak bisa dibaca.')}
+}
+function applySheet(imp){
+  const p=prepRows(imp.rows);imp.headers=p.headers;imp.data=p.data;imp.map=detectMap(p.headers,FIELDS[imp.kind]);
+}
+const cell=(r,i)=>i>=0&&r?r[i]:null;
+const text=v=>v===null||v===undefined?'':String(v).trim();
+
+/* ---- analisis data awal ---- */
+function analyseAwal(imp){
+  const m=imp.map;const items=new Map();let skipped=0,dups=0,badStock=0;
+  for(const r of imp.data){
+    const sku=text(cell(r,m.sku));if(!sku){skipped++;continue}
+    const k=norm(sku);
+    const st=toNum(cell(r,m.stock));if(isNaN(st))badStock++;
+    const it={k,sku,name:text(cell(r,m.name))||sku,group:text(cell(r,m.group))||'Tanpa group',stock:isNaN(st)?0:st,buy:toNum(cell(r,m.buy))||0,sell:toNum(cell(r,m.sell))||0,bc:text(cell(r,m.bc))};
+    if(items.has(k)){dups++;items.get(k).stock+=it.stock}else items.set(k,it);
+  }
+  const list=[...items.values()];
+  const fresh=list.filter(x=>!IDX.has(x.k)),exist=list.filter(x=>IDX.has(x.k));
+  return{list,fresh,exist,skipped,dups,badStock,pcs:list.reduce((a,x)=>a+x.stock,0),hpp:list.reduce((a,x)=>a+x.stock*x.buy,0),
+    ok:m.sku>=0&&m.name>=0&&m.stock>=0&&list.length>0};
+}
+function applyAwal(imp){
+  const a=analyseAwal(imp);
+  const label=imp.mode==='ganti'?'Data awal (ganti semua)':'Tambah produk';
+  snapshotPrev(label);
+  if(imp.mode==='ganti'){
+    S.products=a.list;S.opname={counts:{},scope:'',ts:null};reindex();
+    addLog({type:'awal',label,file:imp.file.name,info:`${fmt(a.list.length)} produk · ${fmt(a.pcs)} pcs · ${rp(a.hpp)}`});
+    toast(`${fmt(a.list.length)} produk dimuat.`);
+  }else{
+    for(const it of a.fresh)S.products.push(it);
+    let upd=0;
+    if(imp.update)for(const it of a.exist){const p=S.products[IDX.get(it.k)];
+      if(imp.map.name>=0)p.name=it.name;if(imp.map.group>=0)p.group=it.group;if(imp.map.buy>=0)p.buy=it.buy;if(imp.map.sell>=0)p.sell=it.sell;if(imp.map.bc>=0)p.bc=it.bc;upd++}
+    reindex();
+    addLog({type:'tambah',label,file:imp.file.name,info:`${fmt(a.fresh.length)} produk baru`+(imp.update?` · ${fmt(upd)} diperbarui`:` · ${fmt(a.exist.length)} sudah ada (dilewati)`)});
+    toast(`${fmt(a.fresh.length)} produk baru ditambahkan.`);
+  }
+  IMP.awal=null;persist();
+}
+
+/* ---- analisis penjualan ---- */
+function analyseJual(imp){
+  const m=imp.map;const agg=new Map();let skipped=0,rows=0;
+  const byName=new Map();if(m.name>=0)for(const p of S.products)byName.set(norm(p.name),p.k);
+  for(const r of imp.data){
+    const q=toNum(cell(r,m.qty));if(isNaN(q)||q===0){skipped++;continue}
+    let key=norm(text(cell(r,m.sku)));let label=text(cell(r,m.sku));
+    if(!key&&m.name>=0){const nm=norm(text(cell(r,m.name)));label=text(cell(r,m.name));if(nm&&byName.has(nm))key=byName.get(nm);else key=nm}
+    if(!key){skipped++;continue}
+    rows++;const g=agg.get(key)||{key,label,qty:0,rows:0};g.qty+=q;g.rows++;agg.set(key,g);
+  }
+  const matched=[],unmatched=[];
+  for(const g of agg.values()){const i=IDX.get(g.key);
+    if(i===undefined)unmatched.push(g);else{const p=S.products[i];matched.push({p,qty:g.qty,after:p.stock-g.qty,rows:g.rows})}}
+  matched.sort((a,b)=>a.after-b.after);
+  const minus=matched.filter(x=>x.after<0);
+  const dup=S.logs.find(l=>l.type==='penjualan'&&!l.undone&&l.file===imp.file.name&&l.fsize===imp.file.size);
+  return{matched,unmatched,minus,skipped,rows,qty:matched.reduce((a,x)=>a+x.qty,0),qtyUn:unmatched.reduce((a,x)=>a+x.qty,0),
+    hpp:matched.reduce((a,x)=>a+x.qty*x.p.buy,0),dup,ok:m.sku>=0&&m.qty>=0&&matched.length>0};
+}
+function applyJual(imp){
+  const a=analyseJual(imp);const changes=[];
+  for(const x of a.matched){x.p.stock-=x.qty;changes.push({k:x.p.k,d:-x.qty})}
+  addLog({type:'penjualan',label:'Penjualan',file:imp.file.name,fsize:imp.file.size,changes,
+    info:`${fmt(a.matched.length)} produk · ${fmt(a.qty)} pcs terjual`+(a.unmatched.length?` · ${fmt(a.unmatched.length)} SKU tidak ditemukan`:''),
+    unmatched:a.unmatched.slice(0,300).map(u=>({sku:u.label,qty:u.qty}))});
+  toast(`Stok dikurangi: ${fmt(a.qty)} pcs dari ${fmt(a.matched.length)} produk.`);
+  IMP.jual=null;persist();
+}
+
+/* ---- opname ---- */
+function opScope(){
+  const q=norm(ui.opq);const out=[];
+  S.products.forEach((p,i)=>{
+    if(ui.opGroup&&p.group!==ui.opGroup)return;
+    if(q&&!(norm(p.sku).includes(q)||norm(p.name).includes(q)))return;
+    const c=S.opname.counts[p.k];
+    if(ui.opFilter==='todo'&&c!==undefined)return;
+    if(ui.opFilter==='diff'&&(c===undefined||c===p.stock))return;
+    out.push(i)});
+  return out;
+}
+function opStats(){
+  let counted=0,plus=0,minus=0,val=0;
+  for(const[k,c]of Object.entries(S.opname.counts)){const i=IDX.get(k);if(i===undefined)continue;const p=S.products[i];counted++;const d=c-p.stock;if(d>0)plus+=d;else minus+=d;val+=d*p.buy}
+  let zero=0;
+  if(ui.opZero&&ui.opGroup)for(const p of S.products)if(p.group===ui.opGroup&&S.opname.counts[p.k]===undefined&&p.stock!==0){zero++;minus-=p.stock;val-=p.stock*p.buy}
+  const scopeN=ui.opGroup?S.products.filter(p=>p.group===ui.opGroup).length:S.products.length;
+  return{counted,plus,minus,val,zero,scopeN};
+}
+function applyOpname(){
+  const changes=[];let n=0;
+  for(const[k,c]of Object.entries(S.opname.counts)){const i=IDX.get(k);if(i===undefined)continue;const p=S.products[i];n++;const d=c-p.stock;if(d!==0){changes.push({k,d});p.stock=c}}
+  if(ui.opZero&&ui.opGroup)for(const p of S.products)if(p.group===ui.opGroup&&S.opname.counts[p.k]===undefined&&p.stock!==0){changes.push({k:p.k,d:-p.stock});p.stock=0;n++}
+  const plus=changes.filter(c=>c.d>0).reduce((a,c)=>a+c.d,0),minus=changes.filter(c=>c.d<0).reduce((a,c)=>a+c.d,0);
+  addLog({type:'opname',label:'Stok opname'+(ui.opGroup?' – '+ui.opGroup:''),changes,info:`${fmt(n)} produk dihitung · ${fmt(changes.length)} selisih (+${fmt(plus)} / ${fmt(minus)} pcs)`});
+  S.opname={counts:{},scope:'',ts:null};ui.lastScan=null;
+  toast(`Opname diterapkan: ${fmt(changes.length)} produk disesuaikan.`);persist();
+}
+function undoLog(id){
+  const l=S.logs.find(x=>x.id===id);if(!l||l.undone||!l.changes)return;
+  for(const c of l.changes){const i=IDX.get(c.k);if(i!==undefined)S.products[i].stock-=c.d}
+  l.undone=true;toast('Dibatalkan: stok dikembalikan.');persist();
+}
+async function restorePrev(){
+  try{const v=await idb.get('prev');if(!v)return;
+    S.products=v.products;S.logs=v.logs;S.opname=v.opname||{counts:{},scope:'',ts:null};reindex();
+    addLog({type:'awal',label:'Data dikembalikan ke sebelum '+v.label.toLowerCase(),info:`${fmt(S.products.length)} produk`});
+    hasPrev=null;try{await idb.set('prev',null)}catch(e){}
+    toast('Data dikembalikan.');persist();render()}catch(e){toast('Tidak bisa mengembalikan data.')}
+}
+
+/* ====================== views ====================== */
+function confirmable(id,btn,msg,go,arg=''){
+  if(ui.confirm&&ui.confirm.id===id)return`<div class="confirm" role="alert"><span>${esc(msg)}</span><button class="btn danger" data-act="yes">Ya, lanjutkan</button><button class="btn" data-act="no">Batal</button></div>`;
+  return btn.replace('<button','<button data-act="ask" data-id="'+id+'" data-go="'+go+'" data-arg="'+esc(arg)+'"');
+}
+function vRingkasan(){
+  if(!S.products.length)return`<div class="card"><div class="empty"><h2>Belum ada data stok</h2>
+    <p>Mulai dengan mengimpor Excel data awal (kolom: product, sku, group, stock, buy price). Setelah itu, impor file penjualan untuk mengurangi stok, dan pakai tab Opname untuk mencocokkan stok fisik.</p>
+    <div class="row" style="justify-content:center"><button class="btn primary" data-act="goto" data-tab="import" data-imp="awal">Impor data awal</button><button class="btn" data-act="sample">Isi 8 data contoh</button></div></div></div>`;
+  const s=summary();
+  return`<div class="tiles">
+    <div class="tile"><span>Total model</span><b>${fmt(s.models)}</b></div>
+    <div class="tile"><span>Total stok (pcs)</span><b>${fmt(s.pcs)}</b></div>
+    <div class="tile"><span>SKU berstok</span><b>${fmt(s.active)} <small class="muted" style="font-size:.9rem;font-family:var(--font-body)">/ ${fmt(S.products.length)}</small></b></div>
+    <div class="tile"><span>Nilai stok (HPP)</span><b>${rp(s.hpp)}</b></div></div>
+  <div class="card"><header><div><h2>Rekap per group</h2><p>Model dihitung dari nama produk unik (varian ukuran “ - S-7” dst. dianggap satu model). Model yang stoknya kosong tetap dihitung; QTY dan HPP hanya dari SKU yang stoknya lebih dari 0.</p></div>
+    <button class="btn" data-act="exp-rekap">Unduh Excel</button></header>
+    <div class="tablebox"><table><thead><tr><th>Group</th><th class="num">Jumlah model</th><th class="num">Jumlah QTY</th><th class="num">Total HPP</th><th>Barcode terakhir</th></tr></thead><tbody>
+    ${s.groups.map(g=>`<tr><td>${esc(g.group)}</td><td class="num">${fmt(g.models.size)}</td><td class="num">${fmt(g.qty)}</td><td class="num">${rp(g.hpp)}</td><td class="mono">${esc(lastBc(g.group))}</td></tr>`).join('')}
+    </tbody><tfoot><tr><td>TOTAL</td><td class="num">${fmt(s.models)}</td><td class="num">${fmt(s.pcs)}</td><td class="num">${rp(s.hpp)}</td><td></td></tr></tfoot></table></div>
+    <p class="small muted">Total model di baris bawah dihitung unik di seluruh group, jadi bisa sedikit berbeda dari penjumlahan kolom.</p></div>`;
+}
+function stokRows(){
+  const q=norm(ui.q);let out=S.products.filter(p=>{
+    if(ui.gf&&p.group!==ui.gf)return false;
+    if(ui.sf==='ada'&&!(p.stock>0))return false;
+    if(ui.sf==='habis'&&p.stock!==0)return false;
+    if(ui.sf==='minus'&&!(p.stock<0))return false;
+    if(q&&!(norm(p.sku).includes(q)||norm(p.name).includes(q)||norm(p.bc||'').includes(q)))return false;return true});
+  const k=ui.sort.k;
+  if(k){const d=ui.sort.d;out=[...out].sort((a,b)=>{const x=k==='total'?a.stock*a.buy:a[k],y=k==='total'?b.stock*b.buy:b[k];
+    return(typeof x==='string'?x.localeCompare(y):x-y)*d})}
+  return out;
+}
+function vStok(){
+  if(!S.products.length)return vRingkasan();
+  const groups=[...new Set(S.products.map(p=>p.group))].sort((a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1);
+  const rows=stokRows(),PS=100,pages=Math.max(1,Math.ceil(rows.length/PS));if(ui.page>=pages)ui.page=pages-1;
+  const slice=rows.slice(ui.page*PS,ui.page*PS+PS);
+  const th=(k,l,cls='')=>`<th class="sort ${cls}" data-act="sort" data-k="${k}">${l}${ui.sort.k===k?(ui.sort.d>0?' ▲':' ▼'):''}</th>`;
+  return`<div class="card"><header><div><h2>Daftar stok</h2><p>${fmt(rows.length)} dari ${fmt(S.products.length)} produk</p></div></header>
+  <div class="row"><input type="search" id="q" class="grow" placeholder="Cari SKU, barcode, atau nama produk" value="${esc(ui.q)}" aria-label="Cari produk">
+    <select id="gf" aria-label="Filter group"><option value="">Semua group</option>${groups.map(g=>`<option ${g===ui.gf?'selected':''} value="${esc(g)}">${esc(g)}</option>`).join('')}</select></div>
+  <div class="chips">${[['all','Semua'],['ada','Ada stok'],['habis','Habis (0)'],['minus','Minus']].map(([v,l])=>`<button class="chip" aria-pressed="${ui.sf===v}" data-act="sf" data-v="${v}">${l}</button>`).join('')}</div>
+  <div id="selbar">${selBar()}</div>
+  <div class="tablebox"><table><thead><tr><th><input type="checkbox" data-selall="1" ${slice.length&&slice.every(p=>ui.sel.has(p.k))?'checked':''} aria-label="Pilih semua di halaman ini"></th>${th('sku','SKU')}<th>Barcode</th>${th('name','Produk')}${th('group','Group')}${th('stock','Stok','num')}${th('buy','HPP/unit','num')}${th('total','Total HPP','num')}</tr></thead><tbody>
+  ${slice.map(p=>`<tr><td><input type="checkbox" data-sel="${esc(p.k)}" ${ui.sel.has(p.k)?'checked':''} aria-label="Pilih ${esc(p.sku)}"></td><td class="mono">${esc(p.sku)}</td><td class="mono">${esc(p.bc||'')}</td><td class="name">${esc(p.name)}</td><td>${esc(p.group)}</td>
+    <td class="num">${p.stock<0?`<span class="pill bad">${fmt(p.stock)}</span>`:p.stock===0?`<span class="pill neutral">0</span>`:fmt(p.stock)}</td>
+    <td class="num">${rp(p.buy)}</td><td class="num">${rp(p.stock*p.buy)}</td></tr>`).join('')||'<tr><td colspan="8" class="muted">Tidak ada produk yang cocok.</td></tr>'}
+  </tbody></table></div>
+  <div class="row" style="justify-content:space-between"><span class="muted small">Halaman ${ui.page+1} dari ${pages}</span>
+    <span class="row"><button class="btn" data-act="pg" data-d="-1" ${ui.page===0?'disabled':''}>Sebelumnya</button><button class="btn" data-act="pg" data-d="1" ${ui.page>=pages-1?'disabled':''}>Berikutnya</button></span></div></div>`;
+}
+function dropzone(kind,label){
+  return`<label class="drop" data-drop="${kind}"><input type="file" accept=".xlsx,.csv" data-file="${kind}"><b>${label}</b><br><span class="small">Klik untuk memilih file, atau seret ke sini (.xlsx atau .csv)</span></label>`;
+}
+function colSelect(imp,f){
+  return`<label>${esc(f.label)}${f.req?'':' <small>(opsional)</small>'}<select data-act-change="map" data-f="${f.k}"><option value="-1">${f.req?'— pilih kolom —':'— tidak dipakai —'}</option>
+    ${imp.headers.map((h,i)=>`<option value="${i}" ${imp.map[f.k]===i?'selected':''}>${esc(h)}</option>`).join('')}</select></label>`;
+}
+function fileBar(imp){
+  return`<div class="row"><span class="pill acc">${esc(imp.file.name)}</span><span class="muted small">${fmt(imp.data.length)} baris data</span>
+    ${imp.table.sheets.length>1?`<label class="row small">Sheet <select data-act-change="sheet">${imp.table.sheets.map((s,i)=>`<option value="${i}" ${i===imp.sheet?'selected':''}>${esc(s)}</option>`).join('')}</select></label>`:''}
+    <button class="btn ghost" data-act="clear-imp">Ganti file</button></div>`;
+}
+function vImport(){
+  const kind=ui.imp,imp=IMP[kind];
+  const seg=`<div class="seg" role="group" aria-label="Jenis import"><button aria-pressed="${kind==='awal'}" data-act="imp-kind" data-v="awal">Data awal / tambah produk</button><button aria-pressed="${kind==='jual'}" data-act="imp-kind" data-v="jual">Penjualan</button></div>`;
+  let body='';
+  if(kind==='awal'){
+    body=`<div class="card"><header><div><h2>Impor data awal</h2><p>Untuk memulai dari nol, atau menambah produk baru ke stok yang sudah ada.</p></div></header>`;
+    if(!imp)body+=dropzone('awal','Pilih file Excel stok awal')+`<p class="small muted">Kolom yang dikenali: product, sku, group, stock, buy price, sell price pos. Nama kolom lain bisa dipilih manual setelah file dibuka.</p>`;
+    else{
+      const a=analyseAwal(imp);
+      body+=fileBar(imp)+`<div class="maps">${FIELDS.awal.map(f=>colSelect(imp,f)).join('')}</div>
+      <div class="row" style="align-items:stretch;flex-direction:column;gap:8px">
+        <label class="radio"><input type="radio" name="mode" value="ganti" data-act-change="mode" ${imp.mode==='ganti'?'checked':''}><span><b>Ganti semua data</b><small>Stok sekarang dihapus dan diganti isi file ini. Dipakai untuk data awal / awal periode.</small></span></label>
+        <label class="radio"><input type="radio" name="mode" value="tambah" data-act-change="mode" ${imp.mode==='tambah'?'checked':''}><span><b>Tambah produk baru saja</b><small>SKU yang belum ada ditambahkan dengan stok dari file. SKU yang sudah ada tidak mengubah stok.</small></span></label>
+        ${imp.mode==='tambah'?`<label class="row small" style="padding-left:12px"><input type="checkbox" data-act-change="update" ${imp.update?'checked':''}> Perbarui juga nama, group, dan harga untuk SKU yang sudah ada (stok tetap)</label>`:''}
+      </div>`;
+      if(!a.ok)body+=`<div class="banner">Pilih kolom SKU, Nama produk, dan Stok yang benar agar bisa dilanjutkan.</div>`;
+      else{
+        const stats=imp.mode==='ganti'
+          ?`<div><span>Produk di file</span><b>${fmt(a.list.length)}</b></div><div><span>Total pcs</span><b>${fmt(a.pcs)}</b></div><div><span>Nilai HPP</span><b>${rp(a.hpp)}</b></div>${S.products.length?`<div><span>Akan menimpa</span><b>${fmt(S.products.length)} produk</b></div>`:''}`
+          :`<div><span>Produk baru</span><b class="pos">${fmt(a.fresh.length)}</b></div><div><span>Sudah ada</span><b>${fmt(a.exist.length)}</b></div><div><span>Pcs baru</span><b>${fmt(a.fresh.reduce((s,x)=>s+x.stock,0))}</b></div>`;
+        body+=`<div class="stats">${stats}</div>`;
+        if(a.skipped||a.dups||a.badStock)body+=`<p class="small muted">${a.skipped?fmt(a.skipped)+' baris tanpa SKU dilewati. ':''}${a.dups?fmt(a.dups)+' SKU kembar di file digabung (stok dijumlahkan). ':''}${a.badStock?fmt(a.badStock)+' baris dengan stok bukan angka dianggap 0.':''}</p>`;
+        if(imp.mode==='tambah'&&a.fresh.length)body+=`<details><summary>Lihat produk baru (${fmt(Math.min(a.fresh.length,50))} pertama)</summary><div class="tablebox"><table><tbody>${a.fresh.slice(0,50).map(x=>`<tr><td class="mono">${esc(x.sku)}</td><td class="name">${esc(x.name)}</td><td>${esc(x.group)}</td><td class="num">${fmt(x.stock)}</td></tr>`).join('')}</tbody></table></div></details>`;
+        const can=imp.mode==='ganti'||a.fresh.length>0||(imp.update&&a.exist.length>0);
+        const btn=`<button class="btn primary" ${can?'':'disabled'}>${imp.mode==='ganti'?'Ganti semua data':'Tambahkan produk'}</button>`;
+        body+=`<div>${can?confirmable('awal',btn,imp.mode==='ganti'&&S.products.length?`Ini menimpa ${fmt(S.products.length)} produk yang ada. Data sebelumnya masih bisa dikembalikan lewat tab Riwayat.`:'Terapkan impor ini?','apply-awal'):btn}</div>`;
+      }
+    }
+    body+=`</div>`;
+  }else{
+    body=`<div class="card"><header><div><h2>Impor penjualan</h2><p>Setiap baris file mengurangi stok SKU yang sama. Jumlah negatif (retur) menambah stok.</p></div></header>`;
+    if(!S.products.length)body+=`<div class="banner">Impor data awal dulu supaya ada stok yang bisa dikurangi.</div>`;
+    else if(!imp)body+=dropzone('jual','Pilih file Excel penjualan')+`<p class="small muted">File perlu kolom SKU dan jumlah terjual (qty). Beberapa baris dengan SKU sama otomatis dijumlahkan.</p>`;
+    else{
+      const a=analyseJual(imp);
+      body+=fileBar(imp)+`<div class="maps">${FIELDS.jual.map(f=>colSelect(imp,f)).join('')}</div>`;
+      if(!a.ok)body+=`<div class="banner">${imp.map.sku<0||imp.map.qty<0?'Pilih kolom SKU dan jumlah terjual.':'Tidak ada SKU di file ini yang cocok dengan data stok.'}</div>`;
+      if(a.matched.length||a.unmatched.length)body+=`<div class="stats"><div><span>Produk terjual</span><b>${fmt(a.matched.length)}</b></div><div><span>Pcs dikurangi</span><b>${fmt(a.qty)}</b></div><div><span>HPP terjual</span><b>${rp(a.hpp)}</b></div>
+        <div><span>SKU tidak ditemukan</span><b class="${a.unmatched.length?'neg':''}">${fmt(a.unmatched.length)}</b></div><div><span>Stok jadi minus</span><b class="${a.minus.length?'neg':''}">${fmt(a.minus.length)}</b></div></div>`;
+      if(a.dup)body+=`<div class="banner">File dengan nama dan ukuran sama sudah diimpor pada ${fmtTime(a.dup.ts)}. Impor lagi akan mengurangi stok dua kali.</div>`;
+      if(a.unmatched.length)body+=`<details open><summary>SKU tidak ditemukan (${fmt(a.unmatched.length)}) – tidak ikut mengurangi stok</summary>
+        <div class="tablebox"><table><thead><tr><th>SKU / nama di file</th><th class="num">Qty</th></tr></thead><tbody>${a.unmatched.slice(0,100).map(u=>`<tr><td>${esc(u.label)}</td><td class="num">${fmt(u.qty)}</td></tr>`).join('')}</tbody></table></div>
+        <div class="row" style="margin-top:8px"><button class="btn" data-act="exp-unmatched">Unduh daftar ini (Excel)</button><span class="small muted">Tambahkan sebagai produk baru lewat Import data awal, lalu impor penjualannya lagi.</span></div></details>`;
+      if(a.minus.length)body+=`<details><summary>Stok akan minus (${fmt(a.minus.length)})</summary><div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th class="num">Stok</th><th class="num">Terjual</th><th class="num">Sisa</th></tr></thead><tbody>${a.minus.slice(0,100).map(x=>`<tr><td class="mono">${esc(x.p.sku)}</td><td class="name">${esc(x.p.name)}</td><td class="num">${fmt(x.p.stock)}</td><td class="num">${fmt(x.qty)}</td><td class="num neg">${fmt(x.after)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      if(a.matched.length)body+=`<details><summary>Rincian produk terjual (${fmt(Math.min(100,a.matched.length))} pertama)</summary><div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th class="num">Stok</th><th class="num">Terjual</th><th class="num">Sisa</th></tr></thead><tbody>${a.matched.slice(0,100).map(x=>`<tr><td class="mono">${esc(x.p.sku)}</td><td class="name">${esc(x.p.name)}</td><td class="num">${fmt(x.p.stock)}</td><td class="num">${fmt(x.qty)}</td><td class="num">${fmt(x.after)}</td></tr>`).join('')}</tbody></table></div></details>`;
+      if(a.ok){const btn=`<button class="btn primary">${a.dup?'Tetap kurangi stok':'Kurangi stok'}</button>`;
+        body+=`<div>${confirmable('jual',btn,`Kurangi stok ${fmt(a.matched.length)} produk sebanyak ${fmt(a.qty)} pcs?`,'apply-jual')}</div>`}
+    }
+    body+=`</div>`;
+  }
+  return`<div class="row">${seg}</div>${body}`;
+}
+function vOpname(){
+  if(!S.products.length)return vRingkasan();
+  const groups=[...new Set(S.products.map(p=>p.group))].sort((a,b)=>a.toLowerCase()<b.toLowerCase()?-1:1);
+  const st=opStats();const idxs=opScope(),PS=50,pages=Math.max(1,Math.ceil(idxs.length/PS));if(ui.opPage>=pages)ui.opPage=pages-1;
+  const slice=idxs.slice(ui.opPage*PS,ui.opPage*PS+PS);
+  const btn=`<button class="btn primary" ${st.counted||st.zero?'':'disabled'}>Terapkan selisih</button>`;
+  const sc=ui.lastScan;
+  return`<div class="card"><header><div><h2>Stok opname</h2><p>Isi jumlah fisik per produk, atau ketik SKU lalu Enter untuk menambah 1 pcs. Produk yang belum dihitung tidak berubah.</p></div>
+    <div class="row"><button class="btn" data-act="exp-opname">Unduh lembar hitung</button><label class="btn" style="cursor:pointer">Impor hasil hitung<input type="file" accept=".xlsx,.csv" data-file="opname" hidden></label></div></header>
+  <div class="row"><input type="text" id="scan" class="grow" placeholder="Ketik / scan SKU, tekan Enter" autocomplete="off" aria-label="Scan SKU"><label class="row small">Jumlah <input type="number" id="scanqty" value="1" min="1"></label></div>
+  ${sc?(sc.err?`<div class="scanres bad" role="status">SKU “${esc(sc.err)}” tidak ditemukan.</div>`:`<div class="scanres" role="status"><b>${esc(sc.p.name)}</b><span class="mono">${esc(sc.p.sku)}</span><span>Sistem ${fmt(sc.p.stock)} · Fisik <b>${fmt(S.opname.counts[sc.p.k])}</b></span></div>`):''}
+  <div class="stats"><div><span>Sudah dihitung</span><b id="st-counted">${fmt(st.counted)} <small class="muted" style="font-size:.9rem;font-family:var(--font-body)">/ ${fmt(st.scopeN)}</small></b></div>
+    <div><span>Lebih (pcs)</span><b class="pos" id="st-plus">+${fmt(st.plus)}</b></div><div><span>Kurang (pcs)</span><b class="neg" id="st-minus">${fmt(st.minus)}</b></div><div><span>Nilai selisih (HPP)</span><b id="st-val">${rp(st.val)}</b></div></div>
+  <div class="row"><select id="opg" aria-label="Group"><option value="">Semua group</option>${groups.map(g=>`<option ${g===ui.opGroup?'selected':''} value="${esc(g)}">${esc(g)}</option>`).join('')}</select>
+    <input type="search" id="opq" class="grow" placeholder="Cari SKU atau nama" value="${esc(ui.opq)}" aria-label="Cari produk">
+    <span class="chips">${[['all','Semua'],['todo','Belum dihitung'],['diff','Ada selisih']].map(([v,l])=>`<button class="chip" aria-pressed="${ui.opFilter===v}" data-act="opf" data-v="${v}">${l}</button>`).join('')}</span></div>
+  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th class="num">Sistem</th><th class="num">Fisik</th><th class="num">Selisih</th></tr></thead><tbody>
+  ${slice.map(i=>{const p=S.products[i],c=S.opname.counts[p.k];return`<tr data-k="${esc(p.k)}"><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="num">${fmt(p.stock)}</td>
+    <td class="num"><input type="number" class="fisik" data-k="${esc(p.k)}" value="${c===undefined?'':c}" min="0" aria-label="Fisik ${esc(p.sku)}"></td><td class="num sel">${selCell(p,c)}</td></tr>`}).join('')||'<tr><td colspan="5" class="muted">Tidak ada produk yang cocok.</td></tr>'}
+  </tbody></table></div>
+  <div class="row" style="justify-content:space-between"><span class="muted small">Halaman ${ui.opPage+1} dari ${pages} · ${fmt(idxs.length)} produk</span>
+    <span class="row"><button class="btn" data-act="oppg" data-d="-1" ${ui.opPage===0?'disabled':''}>Sebelumnya</button><button class="btn" data-act="oppg" data-d="1" ${ui.opPage>=pages-1?'disabled':''}>Berikutnya</button></span></div>
+  ${ui.opGroup?`<label class="row small"><input type="checkbox" id="opzero" ${ui.opZero?'checked':''}> Produk di group “${esc(ui.opGroup)}” yang belum dihitung dianggap fisik 0 (${fmt(S.products.filter(p=>p.group===ui.opGroup&&S.opname.counts[p.k]===undefined&&p.stock!==0).length)} produk berstok)</label>`:''}
+  <div class="row">${st.counted||st.zero?confirmable('opname',btn,`Ubah stok ${fmt(st.counted+st.zero)} produk sesuai hitungan fisik? Bisa dibatalkan dari tab Riwayat.`,'apply-opname'):btn}
+    ${st.counted?`<button class="btn ghost" data-act="op-reset">Kosongkan hitungan</button>`:''}</div></div>`;
+}
+function selCell(p,c){if(c===undefined)return'<span class="muted">–</span>';const d=c-p.stock;return d===0?'<span class="pill good">cocok</span>':`<span class="${d>0?'pos':'neg'}">${d>0?'+':''}${fmt(d)}</span>`}
+function vRiwayat(){
+  const T={awal:['DATA AWAL','acc'],tambah:['TAMBAH','acc'],penjualan:['PENJUALAN','warn'],opname:['OPNAME','good'],hapus:['HAPUS','bad']};
+  return`<div class="card"><header><div><h2>Riwayat</h2><p>Setiap impor dan opname tercatat. Penjualan dan opname bisa dibatalkan.</p></div>
+    ${hasPrev?confirmable('prev',`<button class="btn">Kembalikan data sebelum impor terakhir</button>`,`Kembalikan seluruh data ke kondisi sebelum "${hasPrev.label}" (${fmtTime(hasPrev.ts)})? Perubahan sesudahnya hilang.`,'restore-prev'):''}</header>
+    ${S.logs.length?S.logs.slice(0,200).map(l=>`<div class="log ${l.undone?'undone':''}"><span class="pill ${(T[l.type]||['',''])[1]}">${(T[l.type]||[l.type])[0]}</span>
+      <div class="grow"><b>${esc(l.label)}${l.undone?' (dibatalkan)':''}</b><span class="muted small">${fmtTime(l.ts)}${l.file?' · '+esc(l.file):''}</span><div class="small">${esc(l.info||'')}</div>
+      ${l.changes&&l.changes.length?`<details><summary>Rincian (${fmt(Math.min(l.changes.length,100))} pertama)</summary><div class="tablebox"><table><tbody>${l.changes.slice(0,100).map(c=>{const p=S.products[IDX.get(c.k)];return`<tr><td class="mono">${esc(p?p.sku:c.k)}</td><td class="name">${esc(p?p.name:'(produk dihapus)')}</td><td class="num ${c.d>0?'pos':'neg'}">${c.d>0?'+':''}${fmt(c.d)}</td></tr>`}).join('')}</tbody></table></div></details>`:''}
+      ${l.unmatched&&l.unmatched.length?`<details><summary>${fmt(l.unmatched.length)} SKU tidak ditemukan</summary><div class="tablebox"><table><tbody>${l.unmatched.slice(0,100).map(u=>`<tr><td>${esc(u.sku)}</td><td class="num">${fmt(u.qty)}</td></tr>`).join('')}</tbody></table></div></details>`:''}</div>
+      ${l.changes&&!l.undone?confirmable('undo'+l.id,`<button class="btn">Batalkan</button>`,'Kembalikan stok seperti sebelum ini?','undo',l.id):''}</div>`).join(''):'<p class="muted">Belum ada aktivitas.</p>'}</div>`;
+}
+function vExport(){
+  const disabled=S.products.length?'':'disabled';
+  return`<div class="card"><header><div><h2>Export untuk tambah produk</h2><p>Unduh daftar produk dalam format yang sama dengan data awal. Tambahkan baris produk baru di bagian bawah, simpan, lalu Import data awal → <b>Tambah produk baru saja</b>.</p></div></header>
+    <div class="row"><button class="btn primary" data-act="exp-products" ${disabled}>Export semua produk (Excel)</button><button class="btn" data-act="exp-template">Template kosong</button></div></div>
+  <div class="card"><header><div><h2>Export lainnya</h2></div></header>
+    <div class="row"><button class="btn" data-act="exp-rekap" ${disabled}>Rekap per group</button><button class="btn" data-act="exp-habis" ${disabled}>Daftar stok habis / minus</button></div></div>
+  <div class="card"><header><div><h2>Backup data</h2><p>Data tersimpan di browser ini saja. Unduh backup secara berkala dan sebelum membersihkan data browser.${S.meta.lastBackup?' Backup terakhir: '+fmtTime(S.meta.lastBackup)+'.':' Belum pernah backup.'}</p></div></header>
+    <div class="row"><button class="btn" data-act="backup" ${disabled}>Unduh backup (.json)</button><label class="btn" style="cursor:pointer">Pulihkan dari backup<input type="file" accept=".json" data-file="restore" hidden></label></div>
+    ${ui.confirm&&ui.confirm.id==='restore'?`<div class="confirm" role="alert"><span>Pulihkan backup “${esc(ui.confirm.arg.name)}” (${fmt(ui.confirm.arg.n)} produk)? Data saat ini diganti.</span><button class="btn danger" data-act="yes">Ya, pulihkan</button><button class="btn" data-act="no">Batal</button></div>`:''}</div>`;
+}
+const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
+function render(){
+  const app=$('#app');if(!app)return;
+  const keepScan=document.activeElement&&document.activeElement.id;
+  const view=TABS.find(t=>t[0]===ui.tab)[2];
+  app.innerHTML=`<header class="top"><div class="wrap"><div class="brand"><h1>Stok Opname</h1><small>${S.products.length?fmt(S.products.length)+' produk · ':''}${storageOK?'tersimpan di browser ini':'penyimpanan tidak tersedia'}</small></div>
+    <nav class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${t[0]===ui.tab}" data-act="tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav></div></header>
+    <div class="wrap"><main>${storageOK?'':'<div class="banner">Browser tidak mengizinkan penyimpanan, jadi data hilang jika halaman ditutup. Gunakan Export & backup setelah bekerja.</div>'}${view()}</main></div>`;
+  if(ui.tab==='stok'||ui.tab==='opname'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
+}
+
+/* ====================== export builders ====================== */
+const HEAD=['product','sku','group','stock','buy price','sell price pos','total buy','total sell pos','barcode'];
+const prodRow=p=>[p.name,p.sku,p.group,p.stock,p.buy,p.sell,p.stock*p.buy,p.stock*p.sell,p.bc||''];
+const W=[38,16,22,8,12,14,12,14,16];
+const stamp=()=>new Date().toISOString().slice(0,10);
+const ACT={
+  tab:d=>{ui.tab=d.tab;ui.confirm=null;render();window.scrollTo(0,0)},
+  goto:d=>{ui.tab=d.tab;if(d.imp)ui.imp=d.imp;render()},
+  sample:()=>{
+    const g=[['Cincin Simple 101 Offline - S-6','cin101S6','Cincin XP',3,28000,99000],['Cincin Simple 101 Offline - S-7','cin101S7','Cincin XP',2,28000,99000],['Cincin Simple 102 Offline - S-6','cin102S6','Cincin XP',4,30000,109000],
+      ['Gelang Rantai 201 P-17cm Offline','grt201','Gelang Rantai',5,41000,159000],['Gelang Bangle 12 D-5.8cm Offline','bgl12','Gelang Bangle Biasa',2,27500,110000],['Liontin 301 Offline','lio301','Liontin',9,12000,59000],
+      ['Anting Clip 401 Offline','anc401','Anting Clip',6,16500,69000],['Kalung 501 P-45cm Offline','kal501','Kalung Biasa',1,52000,199000]];
+    S.products=g.map(([name,sku,group,stock,buy,sell])=>({k:norm(sku),sku,name,group,stock,buy,sell}));reindex();
+    addLog({type:'awal',label:'Data contoh',info:'8 produk contoh. Ganti dengan impor data awal Anda.'});persist();render()},
+  sort:d=>{ui.sort=ui.sort.k===d.k?{k:d.k,d:-ui.sort.d}:{k:d.k,d:1};ui.page=0;render()},
+  sf:d=>{ui.sf=d.v;ui.page=0;ui.sel.clear();render()},
+  pg:d=>{ui.page+=+d.d;ui.sel.clear();render()},
+  opf:d=>{ui.opFilter=d.v;ui.opPage=0;render()},
+  oppg:d=>{ui.opPage+=+d.d;render()},
+  'imp-kind':d=>{ui.imp=d.v;ui.confirm=null;render()},
+  'clear-imp':()=>{IMP[ui.imp]=null;ui.confirm=null;render()},
+  ask:d=>{ui.confirm={id:d.id,go:d.go,arg:d.arg};render()},
+  no:()=>{ui.confirm=null;render()},
+  yes:()=>{const c=ui.confirm;ui.confirm=null;
+    if(c.id==='restore'){doRestore(c.arg.data);return}
+    ({'apply-awal':()=>applyAwal(IMP.awal),'apply-jual':()=>applyJual(IMP.jual),'apply-opname':applyOpname,'undo':()=>undoLog(c.arg),'restore-prev':restorePrev,'apply-tambah':applyTambah,'del-prod':delProd,'pend-in':pendIn,'pend-clear':pendClear})[c.go]();render()},
+  'op-reset':()=>{S.opname={counts:{},scope:'',ts:null};ui.lastScan=null;persist();render()},
+  'exp-products':()=>saveXlsx(`produk-${stamp()}.xlsx`,[{name:'Produk',widths:W,rows:[HEAD,...S.products.map(prodRow)]}]),
+  'exp-template':()=>saveXlsx('template-tambah-produk.xlsx',[{name:'Produk',widths:W,rows:[HEAD]}]),
+  'exp-rekap':()=>{const s=summary();saveXlsx(`rekap-stok-${stamp()}.xlsx`,[{name:'Rekap',widths:[28,14,14,16,18],rows:[['Sub Kategori','Jumlah Model','Jumlah QTY','Total HPP','Barcode terakhir'],...s.groups.map(g=>[g.group,g.models.size,g.qty,g.hpp,lastBc(g.group)]),['TOTAL',s.models,s.pcs,s.hpp,'']]}])},
+  'exp-habis':()=>saveXlsx(`stok-habis-${stamp()}.xlsx`,[{name:'Stok habis',widths:W.slice(0,6),rows:[HEAD.slice(0,6),...S.products.filter(p=>p.stock<=0).map(p=>prodRow(p).slice(0,6))]}]),
+  'exp-unmatched':()=>{const a=analyseJual(IMP.jual);saveXlsx('sku-tidak-ditemukan.xlsx',[{name:'Tidak ditemukan',widths:[30,10],rows:[['sku / nama di file','qty terjual'],...a.unmatched.map(u=>[u.label,u.qty])]}])},
+  'exp-opname':()=>{const idx=opScope();saveXlsx(`lembar-opname-${stamp()}.xlsx`,[{name:'Opname',widths:[16,38,22,12,12],rows:[['sku','product','group','stok sistem','stok fisik'],...idx.map(i=>{const p=S.products[i],c=S.opname.counts[p.k];return[p.sku,p.name,p.group,p.stock,c===undefined?null:c]})]}])},
+  backup:async()=>{S.meta.lastBackup=Date.now();persist();render();await saveFile(`backup-stok-${stamp()}.json`,new Blob([JSON.stringify({app:'stok-opname',v:1,exported:new Date().toISOString(),state:S})],{type:'application/json'}))}
+};
+async function doRestore(data){
+  S=Object.assign({products:[],logs:[],opname:{counts:{},scope:'',ts:null},meta:{}},data);S.map=S.map||JSON.parse(JSON.stringify(MAPD));S.pending=S.pending||[];S.periode=S.periode||'';S.bcLast=S.bcLast||{};reindex();
+  addLog({type:'awal',label:'Pulihkan backup',info:`${fmt(S.products.length)} produk`});toast('Backup dipulihkan.');persist();render();
+}
+async function importOpname(file){
+  try{
+    const t=await openTable(file);const p=prepRows(await t.rows(0));
+    const m=detectMap(p.headers,[{k:'sku',alias:['sku','kode','barcode']},{k:'f',alias:['stok fisik','stock fisik','qty fisik','fisik','hitung','physical','counted','actual']}]);
+    if(m.sku<0||m.f<0)return toast('Kolom "sku" dan "stok fisik" tidak ditemukan di file.');
+    let ok=0,miss=0;
+    for(const r of p.data){const q=toNum(cell(r,m.f));if(isNaN(q))continue;const k=norm(text(cell(r,m.sku)));
+      if(IDX.has(k)){S.opname.counts[k]=q;ok++}else miss++}
+    S.opname.ts=S.opname.ts||Date.now();persist();render();
+    toast(`${fmt(ok)} hasil hitung dimasukkan`+(miss?`, ${fmt(miss)} SKU tidak dikenal dilewati.`:'.'));
+  }catch(e){toast(e.message||'File tidak bisa dibaca.')}
+}
+
+/* ====================== tambah barang (rumus CINCIN & SATUAN dari template Excel) ====================== */
+const MAPD={
+ jenis:'FLEK=Fleksibel|SIM=Simple|JUM=Jumbo|VUJ=Vuji|NOR=Normal|DUB=Dub|ANT=Anting Tusuk|ANJ=Anting Jurai|ANK=Anting klip|ANG=Anting Gipsi|GJR=Gelang Jurai|GSR=Gelang Serut|GRM=Gelang Rantai|GSN=Gelang Rantai|LNS=Liontin|GFX=Gelang Bangle Biasa|GBS=Gelang Bangle Biasa|LNJ=Liontin|GBO=Gelang Bangle Premium'.split('|').map(s=>s.split('=')),
+ kat:'Gelang Keroncong=D|Gelang Bangle Premium=F|Gelang Kaki=G|Gelang Serut=H|Gelang Rantai=I|Gelang Jurai=J|Gelang Bangle Biasa=K|Cincin MEILYN=C|Cincin XP=B|Cincin YXY=1|Kalung Koye=L|Kalung Biasa=M|Anting Desi=N|Anting Gipsi=O|Anting Tusuk=P|Anting Jurai=Q|Anting Clip=R|Liontin=S'.split('|').map(s=>s.split('=')),
+ warna:'PER=PERHIASAN|KUN=KUNING|GLD=GOLD|PUT=PUTIH|RSG=ROSEGOLD|KOM=KOMBINASI|BGD=BLACK GOLD'.split('|').map(s=>s.split('='))};
+const lk=(a,k)=>{k=norm(k);const r=a.find(x=>norm(x[0])===k);return r?r[1]:null};
+const proper=s=>String(s).toLowerCase().replace(/(^|[^a-z])([a-z])/g,(m,a,b)=>a+b.toUpperCase());
+const price=q=>Math.round((q<=1e4?q*3:q<=2e4?q*2.5:q*2)/1000)*2000;
+const skuParts=s=>{const m=/-([A-Za-z]+)-/.exec(s),n=/\d+/.exec(s);return{code:m&&m[1],num:n&&n[0]}};
+const bulan=()=>String(new Date().getMonth()+1).padStart(2,'0');
+const blank=()=>Array.from({length:5},()=>({}));
+ui.sel=new Set();ui.tb='cincin';ui.dr={cincin:blank(),satuan:blank()};
+function genCincin(r){
+  const sku=text(r.sku),{code,num}=skuParts(sku),qty=toNum(r.qty),hpp=toNum(r.hpp),sz=text(r.size),br=text(r.brand);
+  const jenis=code&&lk(S.map.jenis,code);
+  if(!jenis)return{err:`Kode jenis "${code||'?'}" tidak ada di MAP`};
+  if(!num)return{err:'Nomor urut tidak ditemukan di SKU'};
+  if(!sz)return{err:'Ukuran kosong (isi angka, atau "Flexibel")'};
+  if(!br)return{err:'Brand/kategori kosong'};
+  const cat='Cincin '+br,pre=lk(S.map.kat,cat);
+  if(pre===null)return{err:`Kategori "${cat}" tidak ada di MAP`};
+  if(isNaN(qty)||isNaN(hpp))return{err:'Qty dan Hpp harus angka'};
+  const vn=isNaN(+sz)?'Flexibel':'S-'+(+sz),base=`Cincin ${jenis} ${num}`,osku=sku+'-'+(vn==='Flexibel'?'ALLSIZE':vn.replace('S-','SIZE'));
+  const o={tp:'cincin',name:base+' Offline',cat,vl:'Ukuran',vn,alt:`${base} ${vn} OFF`,sku:osku,pre,buy:hpp,sell:price(hpp),qty};
+  return{p:{k:norm(osku),sku:osku,name:o.name+' - '+vn,group:cat,stock:qty,buy:hpp,sell:o.sell,pos:o}};
+}
+function genSatuan(r){
+  const sku=text(r.sku),{code,num}=skuParts(sku),qty=toNum(r.qty),hpp=toNum(r.hpp);
+  const jenis=code&&lk(S.map.jenis,code);
+  if(!jenis)return{err:`Kode jenis "${code||'?'}" tidak ada di MAP`};
+  if(!num)return{err:'Nomor urut tidak ditemukan di SKU'};
+  const wc=(sku.split('-')[3]||'').trim(),wn=lk(S.map.warna,wc);
+  if(wn===null)return{err:`Kode warna "${wc}" (bagian ke-4 SKU) tidak ada di MAP`};
+  const cat=jenis.replace(/klip/ig,'Clip'),pre=lk(S.map.kat,cat);
+  if(pre===null)return{err:`Kategori "${cat}" tidak ada di MAP`};
+  if(isNaN(qty)||isNaN(hpp))return{err:'Qty dan Hpp harus angka'};
+  const j=jenis.replace(/ Biasa/g,''),o={tp:'satuan',name:`${j} ${num} ${proper(wn+' Offline')}`,alt:`${j} ${num} OFF`,cat,sku,pre,buy:hpp,sell:price(hpp),qty};
+  return{p:{k:norm(sku),sku,name:o.name,group:cat,stock:qty,buy:hpp,sell:o.sell,pos:o}};
+}
+function maxBc(cat,pre){let n=parseInt((S.bcLast||{})[norm(cat)],10)||0;for(const p of [...S.products,...S.pending])if(norm(p.group)===norm(cat)&&p.bc&&String(p.bc).startsWith(pre)){const x=parseInt(String(p.bc).slice(-9),10);if(x>n)n=x}return n}
+function lastBc(g){
+  let best=null,n=-1;
+  for(const p of [...S.products,...S.pending])if(norm(p.group)===norm(g)&&p.bc){const x=parseInt(String(p.bc).slice(-9),10);if(x>n){n=x;best=String(p.bc)}}
+  const bl=parseInt((S.bcLast||{})[norm(g)],10)||0,pre=lk(S.map.kat,g);
+  if(bl>n&&pre!==null)return String(pre)+String(bl).padStart(9,'0');
+  return best||'–';
+}
+function genAll(kind,rows){
+  const out=[],ctr={},seen=new Set(),pk=new Set(S.pending.map(p=>p.k));
+  rows.forEach((r,i)=>{
+    if(!text(r.sku))return;
+    const o=kind==='cincin'?genCincin(r):genSatuan(r);o.i=i+1;out.push(o);
+    if(!o.p)return;
+    o.dup=IDX.has(o.p.k)||pk.has(o.p.k)||seen.has(o.p.k);seen.add(o.p.k);
+    if(o.dup)return;
+    const pf=String(o.p.pos.pre),ck=norm(o.p.group);if(!(ck in ctr))ctr[ck]=maxBc(o.p.group,String(o.p.pos.pre));
+    ctr[ck]++;o.p.bc=o.p.pos.bc=pf+String(ctr[ck]).padStart(9,'0');
+  });
+  return out;
+}
+function prevHtml(){
+  const c=ui.tb==='cincin',g=genAll(ui.tb,ui.dr[ui.tb]);
+  if(!g.length)return'<p class="muted small">Isi SKU pada satu baris untuk melihat hasil otomatis.</p>';
+  const H=c?['name','category','variant_names','alternative_variant_name','sku','barcode','buy_price','pos_sell_price']:['name','alternative_name','category','sku','barcode','buy_price','pos_sell_price'];
+  const cells=o=>c?[o.name,o.cat,o.vn,o.alt,o.sku,o.bc,fmt(o.buy),fmt(o.sell)]:[o.name,o.alt,o.cat,o.sku,o.bc,fmt(o.buy),fmt(o.sell)];
+  const ok=g.filter(x=>x.p&&!x.dup).length,st=[...new Set(g.filter(x=>x.p&&!x.dup&&/000000001$/.test(x.p.bc)).map(x=>x.p.group))];
+  return`${st.length?`<div class="banner">Barcode ${esc(st.join(', '))} mulai dari 1 karena belum ada barcode terakhir. Isi di "Barcode terakhir per kategori" di atas.</div>`:''}<div class="small muted">Hasil otomatis · ${fmt(ok)} dari ${fmt(g.length)} baris siap ditambahkan</div><div class="tablebox"><table><thead><tr><th>#</th>${H.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>
+  ${g.map(x=>x.err?`<tr><td>${x.i}</td><td colspan="${H.length}" class="neg">${esc(x.err)}</td></tr>`:x.dup?`<tr><td>${x.i}</td><td colspan="${H.length}"><span class="pill warn">SKU sudah ada / dobel, dilewati</span> <span class="mono">${esc(x.p.sku)}</span></td></tr>`
+  :`<tr><td>${x.i}</td>${cells(x.p.pos).map((v,i)=>`<td class="${typeof v==='string'&&/^[\d.]+$/.test(v)?'num':''}">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+}
+function vTambah(){
+  const c=ui.tb==='cincin',rows=ui.dr[ui.tb],nb=S.pending.length,np=S.pending.filter(p=>!p.in).length;
+  if(!S.periode)S.periode=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'][new Date().getMonth()]+' '+new Date().getFullYear();
+  const F=c?[['sku','SKU',200],['size','Ukuran',70],['qty','Qty',80],['hpp','Hpp',100],['brand','Brand/kategori',130]]:[['sku','SKU',240],['qty','Qty',80],['hpp','Hpp',100]];
+  const brands=S.map.kat.filter(x=>/^cincin /i.test(x[0])).map(x=>x[0].slice(7));
+  return`<div class="card"><header><div><h2>Tambah barang</h2><p>Isi kolom manual saja. Nama, kategori, varian, SKU akhir, barcode, dan harga jual dibuat otomatis dari kode di tab Kode (MAP).</p></div>
+    <span class="seg">${[['cincin','Cincin'],['satuan','Satuan']].map(([v,l])=>`<button aria-pressed="${ui.tb===v}" data-act="tb-kind" data-v="${v}">${l}</button>`).join('')}</span></header>
+  <div class="tablebox"><table><thead><tr>${F.map(f=>`<th>${f[1]}</th>`).join('')}</tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr>${F.map(([f,l,w])=>`<td><input type="${f==='qty'||f==='hpp'?'number':'text'}" data-dr="${i}" data-f="${f}" value="${esc(r[f]??'')}" aria-label="${l}" style="width:${w}px;${f==='qty'||f==='hpp'?'':'text-align:left'}" ${f==='brand'?'list="brands"':''}></td>`).join('')}</tr>`).join('')}</tbody></table></div>
+  <datalist id="brands">${brands.map(b=>`<option value="${esc(b)}">`).join('')}</datalist>
+  <div class="row"><button class="btn" data-act="tb-add">+ Baris</button><button class="btn ghost" data-act="tb-clear">Kosongkan baris</button></div>
+  <details><summary>Tempel dari Excel</summary><div class="row" style="margin-top:8px;align-items:flex-start"><textarea id="tbpaste" rows="5" class="grow" style="${TAS}" placeholder="Kolom: ${c?'SKU, Ukuran, Qty, Hpp, Brand':'SKU, Qty, Hpp'} (pisah tab)"></textarea><button class="btn" data-act="tb-paste">Isi baris</button></div></details>
+  <details><summary>Barcode terakhir per kategori</summary><p class="small muted" style="margin:6px 0 10px">Isi barcode terakhir dari POS supaya nomor lanjut dari situ. Boleh barcode lengkap atau nomor urutnya saja.</p>
+    <div class="maps">${S.map.kat.map(([k,pre])=>`<label>${esc(k)}<input type="text" data-bl="${esc(k)}" value="${S.bcLast[norm(k)]?esc(pre+String(S.bcLast[norm(k)]).padStart(9,'0')):''}" placeholder="${esc(pre)}000000000"></label>`).join('')}</div></details>
+  <div id="tbprev">${prevHtml()}</div>
+  <div class="row">${confirmable('tambah','<button class="btn primary">Simpan ke daftar periode</button>','Simpan semua baris yang valid ke daftar periode ini? Belum masuk stok sampai Anda memasukkannya.','apply-tambah')}</div></div>
+  <div class="card"><header><div><h2>Barang periode ini</h2><p>Disimpan dulu di sini dan belum masuk stok. ${fmt(np)} belum masuk stok, ${fmt(nb-np)} sudah masuk.</p></div>
+    <label class="row small">Periode <input type="text" data-per="1" value="${esc(S.periode)}" style="width:150px"></label></header>
+  <div class="tablebox"><table><thead><tr><th>Nama</th><th>SKU</th><th>Barcode</th><th class="num">Qty</th><th>Status</th><th></th></tr></thead><tbody>
+  ${S.pending.map(p=>`<tr><td class="name">${esc(p.name)}</td><td class="mono">${esc(p.sku)}</td><td class="mono">${esc(p.bc)}</td><td class="num">${fmt(p.pos.qty)}</td><td>${p.in?'<span class="pill good">masuk stok</span>':'<span class="pill warn">belum masuk stok</span>'}</td><td>${p.in?'':`<button class="btn ghost" data-act="pend-del" data-k="${esc(p.k)}">Hapus</button>`}</td></tr>`).join('')||'<tr><td colspan="6" class="muted">Belum ada barang.</td></tr>'}</tbody></table></div>
+  <div class="row">${confirmable('pin',`<button class="btn primary" ${np?'':'disabled'}>Masukkan ke stok</button>`,`Masukkan ${np} barang ke daftar stok? Bisa dibatalkan lewat Riwayat (kembalikan data).`,'pend-in')}
+    <button class="btn" data-act="exp-pos" ${nb?'':'disabled'}>Unduh Excel untuk POS</button>
+    ${confirmable('pclr','<button class="btn ghost">Kosongkan daftar</button>','Kosongkan daftar periode ini? Barang yang sudah masuk stok tidak ikut terhapus.','pend-clear')}</div></div>`;
+}
+const TAS='font:inherit;width:100%;border:1px solid var(--line);border-radius:var(--r);padding:8px;background:var(--surface);color:inherit';
+function vKode(){
+  const T=[['jenis','Kode jenis','KODE = Keterangan, mis. SIM = Simple'],['kat','Kategori dan kode barcode','Kategori = Kode, mis. Cincin XP = B'],['warna','Kode warna (SATUAN)','KODE = Warna, mis. PUT = PUTIH']];
+  return`<div class="card"><header><div><h2>Kode (MAP)</h2><p>Sama seperti sheet MAP. Satu baris satu kode. Tersimpan otomatis saat Anda keluar dari kotak.</p></div></header>
+  <div class="maps">${T.map(([k,l,h])=>`<label>${l}<small>${h}</small><textarea data-mapk="${k}" rows="16" style="${TAS}">${esc(S.map[k].map(x=>x[0]+' = '+x[1]).join('\n'))}</textarea></label>`).join('')}</div></div>`;
+}
+function applyTambah(){
+  const g=genAll(ui.tb,ui.dr[ui.tb]).filter(x=>x.p&&!x.dup);
+  if(!g.length)return toast('Tidak ada baris valid untuk disimpan.');
+  for(const x of g)S.pending.push(Object.assign(x.p,{in:false}));
+  ui.dr[ui.tb]=blank();toast(`${fmt(g.length)} barang disimpan di daftar periode (belum masuk stok).`);persist();
+}
+function pendIn(){
+  const L=S.pending.filter(p=>!p.in&&!IDX.has(p.k));
+  if(!L.length)return toast('Tidak ada barang yang bisa dimasukkan.');
+  snapshotPrev('Masukkan barang periode');
+  for(const p of L){S.products.push({k:p.k,sku:p.sku,name:p.name,group:p.group,stock:p.stock,buy:p.buy,sell:p.sell,bc:p.bc,pos:p.pos});p.in=true}
+  reindex();
+  addLog({type:'tambah',label:'Masukkan barang periode '+S.periode,info:`${fmt(L.length)} barang baru · ${fmt(L.reduce((a,p)=>a+p.stock,0))} pcs`});
+  toast(`${fmt(L.length)} barang masuk ke stok.`);persist();
+}
+function pendClear(){S.pending=[];persist()}
+function selBar(){
+  const n=ui.sel.size;if(!n)return'';
+  return`<div class="row"><b>${fmt(n)} dipilih</b>${confirmable('del','<button class="btn danger">Hapus terpilih</button>',`Hapus ${fmt(n)} produk dari daftar stok? Bisa dikembalikan lewat Riwayat (kembalikan data) selama belum ada impor atau penghapusan berikutnya.`,'del-prod')}<button class="btn ghost" data-act="sel-none">Batal pilih</button></div>`;
+}
+function delProd(){
+  const ks=new Set(ui.sel);if(!ks.size)return;
+  snapshotPrev('Hapus produk');
+  const n=S.products.filter(p=>ks.has(p.k)).length;
+  S.products=S.products.filter(p=>!ks.has(p.k));
+  for(const k of ks)delete S.opname.counts[k];
+  S.pending.forEach(p=>{if(ks.has(p.k))p.in=false});
+  ui.sel=new Set();reindex();
+  addLog({type:'hapus',label:'Hapus produk',info:`${fmt(n)} produk dihapus dari daftar stok`});
+  toast(`${fmt(n)} produk dihapus.`);persist();
+}
+function drChange(t){ui.dr[ui.tb][+t.dataset.dr][t.dataset.f]=t.value;const e=$('#tbprev');if(e)e.innerHTML=prevHtml()}
+function mapChange(t){S.map[t.dataset.mapk]=t.value.split(/\r?\n/).map(l=>{const i=l.indexOf('=');return i<0?null:[l.slice(0,i).trim(),l.slice(i+1).trim()]}).filter(x=>x&&x[0]);persist();toast('Kode disimpan.')}
+Object.assign(ACT,{
+  'sel-none':()=>{ui.sel.clear();ui.confirm=null;render()},
+  'tb-kind':d=>{ui.tb=d.v;ui.confirm=null;render()},
+  'tb-add':()=>{ui.dr[ui.tb].push({});render()},
+  'tb-clear':()=>{ui.dr[ui.tb]=blank();render()},
+  'tb-paste':()=>{const t=$('#tbpaste').value.split(/\r?\n/).filter(l=>l.trim()).map(l=>l.split('\t'));
+    if(t.length&&/^sku$/i.test(t[0][0].trim()))t.shift();
+    const ks=ui.tb==='cincin'?['sku','size','qty','hpp','brand']:['sku','qty','hpp'];
+    ui.dr[ui.tb]=t.map(a=>Object.fromEntries(ks.map((k,i)=>[k,(a[i]||'').trim()])));if(!ui.dr[ui.tb].length)ui.dr[ui.tb]=blank();render()},
+  'pend-del':d=>{S.pending=S.pending.filter(p=>p.in||p.k!==d.k);persist();render()},
+  'exp-pos':()=>{
+    const L=S.pending.filter(p=>p.pos),C=L.filter(p=>p.pos.tp==='cincin'),T=L.filter(p=>p.pos.tp==='satuan'),sh=[];
+    if(C.length)sh.push({name:'CINCIN',widths:[30,16,20,14,34,28,16,10,14,16,12],rows:[['name','category','variant_column_labels','variant_names','alternative_variant_name','sku','barcode','buy_price','pos_sell_price','track_inventory','stock_qty'],...C.map(p=>{const o=p.pos;return[o.name,o.cat,o.vl,o.vn,o.alt,o.sku,o.bc,o.buy,o.sell,1,o.qty]})]});
+    if(T.length)sh.push({name:'SATUAN',widths:[34,24,18,28,16,10,14,16,12],rows:[['name','alternative_name','category','sku','barcode','buy_price','pos_sell_price','track_inventory','stock_qty'],...T.map(p=>{const o=p.pos;return[o.name,o.alt,o.cat,o.sku,o.bc,o.buy,o.sell,1,o.qty]})]});
+    if(sh.length)saveXlsx(`barang-baru-pos-${stamp()}.xlsx`,sh)}
+});
+
+/* ====================== events ====================== */
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b||b.disabled)return;
+  const f=ACT[b.dataset.act];if(f){e.preventDefault();f(b.dataset)}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.dataset.file){
+    const file=t.files[0];t.value='';if(!file)return;
+    if(t.dataset.file==='opname')return importOpname(file);
+    if(t.dataset.file==='restore'){try{const j=JSON.parse(await file.text());if(!j||!j.state||!Array.isArray(j.state.products))throw 0;
+      ui.confirm={id:'restore',arg:{name:file.name,n:j.state.products.length,data:j.state}};render()}catch(x){toast('File backup tidak valid.')}return}
+    return pickFile(t.dataset.file,file);
+  }
+  if(t.dataset.sel!==undefined){t.checked?ui.sel.add(t.dataset.sel):ui.sel.delete(t.dataset.sel);ui.confirm=null;const e=$('#selbar');if(e)e.innerHTML=selBar();return}
+  if(t.dataset.selall!==undefined){stokRows().slice(ui.page*100,ui.page*100+100).forEach(p=>t.checked?ui.sel.add(p.k):ui.sel.delete(p.k));ui.confirm=null;render();return}
+  if(t.dataset.bl!==undefined){const x=parseInt(String(t.value).replace(/\D/g,'').slice(-9),10);S.bcLast[norm(t.dataset.bl)]=isNaN(x)?0:x;persist();const e=$('#tbprev');if(e)e.innerHTML=prevHtml();return}
+  if(t.dataset.per!==undefined){S.periode=t.value;persist();return}
+  if(t.dataset.dr!==undefined)return drChange(t);
+  if(t.dataset.mapk)return mapChange(t);
+  const a=t.dataset.actChange,imp=IMP[ui.imp];
+  if(a==='map'){imp.map[t.dataset.f]=+t.value;ui.confirm=null;render()}
+  else if(a==='sheet'){imp.sheet=+t.value;imp.rows=await imp.table.rows(imp.sheet);applySheet(imp);ui.confirm=null;render()}
+  else if(a==='mode'){imp.mode=t.value;ui.confirm=null;render()}
+  else if(a==='update'){imp.update=t.checked;render()}
+  else if(t.id==='gf'){ui.gf=t.value;ui.page=0;ui.sel.clear();render()}
+  else if(t.id==='opg'){ui.opGroup=t.value;ui.opPage=0;ui.opZero=false;render()}
+  else if(t.id==='opzero'){ui.opZero=t.checked;render()}
+});
+let qT;
+document.addEventListener('input',e=>{
+  const t=e.target;
+  if(t.id==='q'||t.id==='opq'){clearTimeout(qT);qT=setTimeout(()=>{if(t.id==='q'){ui.q=t.value;ui.page=0;ui.sel.clear()}else{ui.opq=t.value;ui.opPage=0}render()},200)}
+  else if(t.classList.contains('fisik')){
+    const k=t.dataset.k;const i=IDX.get(k),p=S.products[i];
+    if(t.value==='')delete S.opname.counts[k];else{const n=Math.max(0,Math.floor(+t.value));S.opname.counts[k]=n}
+    S.opname.ts=S.opname.ts||Date.now();
+    t.closest('tr').querySelector('.sel').innerHTML=selCell(p,S.opname.counts[k]);
+    const st=opStats();$('#st-counted').firstChild.textContent=fmt(st.counted)+' ';$('#st-plus').textContent='+'+fmt(st.plus);$('#st-minus').textContent=fmt(st.minus);$('#st-val').textContent=rp(st.val);
+    persist();
+  }
+});
+document.addEventListener('keydown',e=>{
+  if(e.target.id==='scan'&&e.key==='Enter'){
+    e.preventDefault();const v=e.target.value.trim();if(!v)return;
+    const i=IDX.get(norm(v)),q=Math.max(1,Math.floor(+$('#scanqty').value||1));
+    if(i===undefined)ui.lastScan={err:v};
+    else{const p=S.products[i];S.opname.counts[p.k]=(S.opname.counts[p.k]||0)+q;S.opname.ts=S.opname.ts||Date.now();ui.lastScan={p};persist()}
+    render();const s=$('#scan');if(s){s.value='';s.focus()}
+  }
+});
+['dragover','dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{
+  const z=e.target.closest&&e.target.closest('[data-drop]');if(!z)return;
+  e.preventDefault();z.classList.toggle('over',ev==='dragover');
+  if(ev==='drop'&&e.dataTransfer.files[0])pickFile(z.dataset.drop,e.dataTransfer.files[0]);
+}));
+window.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist(true)});
+window.addEventListener('pagehide',()=>persist(true));
+(async()=>{await loadState();await loadPrev();render()})();
+</script>
+
+</body></html>
