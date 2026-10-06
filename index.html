@@ -948,6 +948,9 @@ document.addEventListener('input',e=>{const t=e.target;
 /* ====================== penjualan manual (kurangi stok) ====================== */
 const CART=()=>S.cart||(S.cart=[]);
 Object.assign(ui,{jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
+function jStats(){const C=CART().filter(c=>IDX.has(c.k)),tot=C.reduce((a,c)=>a+c.qty,0),T=jualTot(C);
+  return`<div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Subtotal</span><b>${rp(T.sub)}</b></div>
+    <div><span>Diskon</span><b class="${T.dis?'neg':''}">${T.dis?'-':''}${rp(T.dis)}</b></div><div><span>Total bayar</span><b>${rp(T.total)}</b></div>`}
 function jualTot(C){const sub=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0),v=Math.max(0,+ui.jdv||0);
   const dis=Math.round(ui.jdt==='pct'?sub*Math.min(v,100)/100:Math.min(v,sub));return{sub,dis,total:sub-dis}}
 function jualAdd(k,q){const c=CART().find(x=>x.k===k);if(c)c.qty+=q;else CART().push({k,qty:q});persist()}
@@ -968,8 +971,7 @@ function vJual(){
   <div class="row"><input type="text" id="jnote" class="grow" placeholder="Catatan / no. nota (opsional)" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
   <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
     <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>
-  <div class="stats"><div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Subtotal</span><b>${rp(T.sub)}</b></div>
-    <div><span>Diskon</span><b class="${T.dis?'neg':''}">${T.dis?'-':''}${rp(T.dis)}</b></div><div><span>Total bayar</span><b>${rp(T.total)}</b></div></div>
+  <div class="stats" id="jstats">${jStats()}</div>
   <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`;
 }
 function jualSave(){
@@ -998,7 +1000,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('input',e=>{const t=e.target;
   if(t.classList.contains('jq')){const c=CART().find(x=>x.k===t.dataset.k);if(c){c.qty=Math.max(1,Math.floor(+t.value||1));persist()}}
   else if(t.id==='jnote')ui.jnote=t.value;
-  else if(t.id==='jdisc'){ui.jdv=Math.max(0,+t.value||0);render()}
+  else if(t.id==='jdisc'){ui.jdv=Math.max(0,+t.value||0);const e=$('#jstats');if(e)e.innerHTML=jStats()}
   else if(t.id==='jscan'){clearTimeout(qT);qT=setTimeout(()=>{ui.jq=t.value;ui.jmsg=null;render()},250)}});
 document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render()});
 
