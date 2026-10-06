@@ -948,9 +948,28 @@ document.addEventListener('input',e=>{const t=e.target;
 /* ====================== penjualan manual (kurangi stok) ====================== */
 const CART=()=>ui.jmode==='retur'?(S.cartR||(S.cartR=[])):(S.cart||(S.cart=[]));
 const setCart=a=>{if(ui.jmode==='retur')S.cartR=a;else S.cart=a};
-Object.assign(ui,{jmode:'jual',jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
+Object.assign(ui,{retSrc:'',jmode:'jual',jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
+function saleUnit(l,k){const it=(l.items||[]).find(x=>x.k===k);if(it)return it.price;const p=S.products[IDX.get(k)];return Math.round((p?p.sell:0)*(l.subtotal?l.total/l.subtotal:1))}
+function saleRem(l){const m={};(l.changes||[]).forEach(c=>m[c.k]=(m[c.k]||0)-c.d);
+  S.logs.forEach(r=>{if(r.type==='retur'&&!r.undone&&r.src===l.id)(r.changes||[]).forEach(c=>m[c.k]=(m[c.k]||0)-c.d)});return m}
+function retAdd(k,q){const l=S.logs.find(x=>x.id===ui.retSrc);if(!l)return;const rem=saleRem(l)[k]||0,c=CART().find(x=>x.k===k),add=Math.min(q,rem-(c?c.qty:0));
+  if(add<=0){toast('Barang ini sudah semua diretur.');return}
+  if(c)c.qty+=add;else CART().push({k,qty:add,price:saleUnit(l,k),src:l.id});persist()}
+function addAny(k,q){if(ui.jmode==='retur'&&ui.retSrc){const l=S.logs.find(x=>x.id===ui.retSrc);
+    if(!l||!(saleRem(l)[k]>0)){toast('Barang ini tidak ada di penjualan terpilih atau sudah semua diretur.');return false}retAdd(k,q);return true}
+  jualAdd(k,q);return true}
+function retPanel(){
+  const tx=jualTx().filter(t=>!t.isR).sort((a,b)=>b.ts-a.ts).slice(0,100),l=S.logs.find(x=>x.id===ui.retSrc&&x.type==='penjualan'),rem=l?saleRem(l):{};
+  let h=`<div class="row"><select id="rsrc" class="grow" aria-label="Penjualan asal retur"><option value="">Pilih penjualan asal retur (harga otomatis sesuai penjualan)</option>${tx.map(t=>`<option value="${esc(t.l.id)}" ${t.l.id===ui.retSrc?'selected':''}>${esc(fmtTime(t.ts)+' · '+fmt(t.pcs)+' pcs · '+rp(t.total)+(t.l.label&&t.l.label!=='Penjualan manual'?' · '+t.l.label:''))}</option>`).join('')}</select></div>`;
+  if(l){const ks=Object.keys(rem).filter(k=>IDX.has(k));
+    h+=`<div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th class="num">Bisa diretur</th><th class="num">Harga terjual</th><th><button class="btn ghost" data-act="ret-all">Retur semua</button></th></tr></thead><tbody>${ks.map(k=>{const p=S.products[IDX.get(k)];
+      return`<tr><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="num">${fmt(rem[k])}</td><td class="num">${rp(saleUnit(l,k))}</td><td>${rem[k]>0?`<button class="btn" data-act="ret-add" data-k="${esc(k)}">+ Retur</button>`:'<span class="pill neutral">sudah diretur</span>'}</td></tr>`}).join('')}</tbody></table></div>`}
+  return h}
+function retUnit(c){const p=S.products[IDX.get(c.k)];if(c.price!==undefined)return c.price;
+  for(const l of S.logs){if(l.type!=='penjualan'||l.undone||!l.subtotal||!(l.changes||[]).some(x=>x.k===c.k))continue;return saleUnit(l,c.k)}
+  return p.sell}
 function jStats(){const C=CART().filter(c=>IDX.has(c.k)),tot=C.reduce((a,c)=>a+c.qty,0);
-  if(ui.jmode==='retur'){const v=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0);
+  if(ui.jmode==='retur'){const v=C.reduce((a,c)=>a+c.qty*retUnit(c),0);
     return`<div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs retur</span><b>${fmt(tot)}</b></div><div><span>Nilai retur</span><b>${rp(v)}</b></div>`}
   const T=jualTot(C);
   return`<div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Subtotal</span><b>${rp(T.sub)}</b></div>
@@ -965,14 +984,17 @@ function vJual(){
   const tot=C.reduce((a,c)=>a+c.qty,0),T=jualTot(C);
   return`<div class="card"><header><div><h2>${R?'Retur':'Penjualan'}</h2><p>${R?'Ketik atau scan SKU barang yang diretur lalu Enter. Setelah disimpan, stok bertambah dan tercatat di Riwayat (bisa dibatalkan).':'Ketik atau scan SKU lalu Enter untuk menambah ke daftar. Setelah disimpan, stok berkurang dan tercatat di Riwayat (bisa dibatalkan). Untuk banyak transaksi sekaligus, pakai Import → penjualan.'}</p></div>
     <span class="seg"><button data-act="jual-mode" data-v="jual" aria-pressed="${!R}">Penjualan</button><button data-act="jual-mode" data-v="retur" aria-pressed="${R}">Retur</button></span></header>
+  ${R?retPanel():''}
   <div class="row"><input type="text" id="jscan" class="grow" placeholder="Ketik / scan SKU atau nama, tekan Enter" value="${esc(ui.jq)}" autocomplete="off" aria-label="SKU penjualan"><label class="row small">Jumlah <input type="number" id="jqty" value="1" min="1"></label></div>
   ${m?`<div class="scanres ${m.err?'bad':''}" role="status">${m.err?`SKU “${esc(m.err)}” tidak ditemukan.`:`<b>${esc(m.p.name)}</b><span class="mono">${esc(m.p.sku)}</span><span>Stok ${fmt(m.p.stock)} · Rak: ${rkText(m.p)}</span>`}</div>`:''}
   ${cand.length?`<div class="chips">${cand.map(p=>`<button class="chip" data-act="jual-pick" data-k="${esc(p.k)}">${esc(p.sku)} · ${esc(p.name)}</button>`).join('')}</div>`:''}
-  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th>Rak</th><th class="num">Stok</th><th class="num">${R?'Retur':'Jual'}</th><th class="num">${R?'Stok jadi':'Sisa'}</th><th></th></tr></thead><tbody>
+  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th>Rak</th><th class="num">Stok</th><th class="num">${R?'Retur':'Jual'}</th><th class="num">${R?'Stok jadi':'Sisa'}</th>${R?'<th class="num">Harga/pcs</th>':''}<th></th></tr></thead><tbody>
   ${C.map(c=>{const p=S.products[IDX.get(c.k)],s=R?p.stock+c.qty:p.stock-c.qty;return`<tr><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="small">${rkText(p)}</td><td class="num">${fmt(p.stock)}</td>
     <td class="num"><input type="number" class="jq" data-k="${esc(c.k)}" value="${c.qty}" min="1" aria-label="Jumlah ${esc(p.sku)}"></td><td class="num ${s<0?'neg':''}">${fmt(s)}${s<0?' <span class="pill bad">minus</span>':''}</td>
-    <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Belum ada barang di daftar '+(R?'retur':'penjualan')+'.</td></tr>'}
+    ${R?`<td class="num"><input type="number" class="jp" data-k="${esc(c.k)}" min="0" value="${retUnit(c)}" aria-label="Harga retur ${esc(p.sku)}"></td>`:''}
+    <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="8" class="muted">Belum ada barang di daftar '+(R?'retur':'penjualan')+'.</td></tr>'}
   </tbody></table></div>
+  ${R?'<p class="muted small">Pilih penjualan asal agar harga retur sama dengan harga terjual (setelah diskon). Tanpa memilih penjualan, harga mengikuti penjualan terakhir barang itu. Harga bisa diubah per barang.</p>':''}
   <div class="row"><input type="text" id="jnote" class="grow" placeholder="${R?'Alasan retur / no. nota (opsional)':'Catatan / no. nota (opsional)'}" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
   ${R?'':`  <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
     <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>`}
@@ -982,20 +1004,23 @@ function vJual(){
 function jualSave(){
   const C=CART().filter(c=>IDX.has(c.k));if(!C.length)return;
   const R=ui.jmode==='retur',changes=[];let pcs=0,val=0;
-  for(const c of C){const p=S.products[IDX.get(c.k)];p.stock+=R?c.qty:-c.qty;pcs+=c.qty;val+=c.qty*p.sell;changes.push({k:c.k,d:R?c.qty:-c.qty})}
-  const note=ui.jnote.trim();
-  if(R){addLog({type:'retur',label:'Retur'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs diretur · Nilai ${rp(val)}`,subtotal:val,total:val});
+  for(const c of C){const p=S.products[IDX.get(c.k)];p.stock+=R?c.qty:-c.qty;pcs+=c.qty;val+=c.qty*(R?retUnit(c):p.sell);changes.push({k:c.k,d:R?c.qty:-c.qty})}
+  const note=ui.jnote.trim(),SL=R&&ui.retSrc?S.logs.find(x=>x.id===ui.retSrc):null;
+  if(SL){const rem=saleRem(SL),bad=C.find(c=>c.qty>(rem[c.k]||0));if(bad){toast(`Jumlah retur ${S.products[IDX.get(bad.k)].sku} melebihi yang bisa diretur (${fmt(rem[bad.k]||0)}).`);return}}
+  if(R){addLog({type:'retur',label:'Retur'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs diretur · Nilai ${rp(val)}`+(SL?` · dari penjualan ${fmtTime(SL.ts)}`:''),subtotal:val,total:val,src:SL?SL.id:undefined});
     toast(`Stok ditambah: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`)}
   else{const T=jualTot(C);
-    addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual · Subtotal ${rp(T.sub)}`+(T.dis?` · Diskon ${rp(T.dis)}`+(ui.jdt==='pct'?` (${+ui.jdv}%)`:''):'')+` · Total ${rp(T.total)}`,subtotal:T.sub,diskon:T.dis,total:T.total});
+    addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual · Subtotal ${rp(T.sub)}`+(T.dis?` · Diskon ${rp(T.dis)}`+(ui.jdt==='pct'?` (${+ui.jdv}%)`:''):'')+` · Total ${rp(T.total)}`,subtotal:T.sub,diskon:T.dis,total:T.total,items:C.map(c=>({k:c.k,q:c.qty,price:T.sub?Math.round(S.products[IDX.get(c.k)].sell*T.total/T.sub):S.products[IDX.get(c.k)].sell}))});
     toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`)}
-  setCart([]);ui.jmsg=null;ui.jq='';ui.jnote='';ui.jdv=0;persist();render();
+  setCart([]);ui.jmsg=null;ui.jq='';ui.jnote='';ui.jdv=0;if(R)ui.retSrc='';persist();render();
 }
 Object.assign(ACT,{
-  'jual-pick':d=>{const p=S.products[IDX.get(d.k)];jualAdd(d.k,Math.max(1,Math.floor(+$('#jqty').value||1)));ui.jmsg={p};ui.jq='';render();$('#jscan').focus()},
+  'jual-pick':d=>{const p=S.products[IDX.get(d.k)];const ok=addAny(d.k,Math.max(1,Math.floor(+$('#jqty').value||1)));if(ok){ui.jmsg={p};ui.jq=''}render();$('#jscan').focus()},
   'jual-del':d=>{setCart(CART().filter(c=>c.k!==d.k));persist();render()},
   'jual-dt':d=>{ui.jdt=d.v;render()},
   'jual-mode':d=>{ui.jmode=d.v;ui.jmsg=null;ui.jq='';ui.jnote='';render()},
+  'ret-add':d=>{retAdd(d.k,1);render()},
+  'ret-all':()=>{const l=S.logs.find(x=>x.id===ui.retSrc);if(!l)return;Object.entries(saleRem(l)).forEach(([k,r])=>{if(r>0&&IDX.has(k))retAdd(k,r)});render()},
   'jual-clear':()=>{setCart([]);ui.jmsg=null;ui.jdv=0;persist();render()},
   'jual-save':jualSave
 });
@@ -1004,15 +1029,17 @@ document.addEventListener('keydown',e=>{
   e.preventDefault();const v=e.target.value.trim();if(!v)return;
   const q=Math.max(1,Math.floor(+$('#jqty').value||1));let i=IDX.get(norm(v));
   if(i===undefined){const hits=S.products.filter(p=>norm(p.sku)===norm(v)||(p.bc&&norm(p.bc)===norm(v)));if(hits.length)i=IDX.get(hits[0].k)}
-  if(i===undefined){ui.jmsg={err:v};ui.jq=v}else{const p=S.products[i];jualAdd(p.k,q);ui.jmsg={p};ui.jq=''}
+  if(i===undefined){ui.jmsg={err:v};ui.jq=v}else{const p=S.products[i];if(addAny(p.k,q)){ui.jmsg={p};ui.jq=''}}
   render();const s=$('#jscan');if(s){s.value=ui.jq;s.focus()}
 });
 document.addEventListener('input',e=>{const t=e.target;
   if(t.classList.contains('jq')){const c=CART().find(x=>x.k===t.dataset.k);if(c){c.qty=Math.max(1,Math.floor(+t.value||1));persist()}}
+  else if(t.classList.contains('jp')){const c=CART().find(x=>x.k===t.dataset.k);if(c){c.price=Math.max(0,+t.value||0);persist();const e=$('#jstats');if(e)e.innerHTML=jStats()}}
   else if(t.id==='jnote')ui.jnote=t.value;
   else if(t.id==='jdisc'){ui.jdv=Math.max(0,+t.value||0);const e=$('#jstats');if(e)e.innerHTML=jStats()}
   else if(t.id==='jscan'){clearTimeout(qT);qT=setTimeout(()=>{ui.jq=t.value;ui.jmsg=null;render()},250)}});
-document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render()});
+document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render();
+  if(e.target.id==='rsrc'){ui.retSrc=e.target.value;if(CART().some(c=>c.src!==(ui.retSrc||undefined)))setCart([]);ui.jmsg=null;render()}});
 
 /* ====================== riwayat penjualan per periode ====================== */
 Object.assign(ui,{hpMode:'hari',hpM:''});
