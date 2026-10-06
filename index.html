@@ -34,6 +34,8 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background
 header.top .wrap{display:flex;flex-direction:column;gap:10px}
 .brand{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
 .brand h1{font-size:1.5rem}
+.titlein{font:inherit;letter-spacing:inherit;color:inherit;background:transparent;border:1px dashed transparent;border-radius:var(--r);padding:0 6px;margin-left:-7px;max-width:100%;cursor:text}
+.titlein:hover,.titlein:focus{border-color:var(--line);background:var(--surface)}
 .brand small{color:var(--muted)}
 nav.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:thin}
 nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap}
@@ -642,9 +644,10 @@ function vExport(){
 const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['jual','Penjualan & Retur',vJual],['rak','Rak',vRak],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
 function render(){
   const app=$('#app');if(!app)return;
+  document.title=S.title||'Stok Opname';
   const keepScan=document.activeElement&&document.activeElement.id;
   const view=TABS.find(t=>t[0]===ui.tab)[2];
-  app.innerHTML=`<header class="top"><div class="wrap"><div class="brand"><h1>Stok Opname</h1><small>${S.products.length?fmt(S.products.length)+' produk · ':''}${storageOK?'tersimpan di browser ini':'penyimpanan tidak tersedia'}</small></div>
+  app.innerHTML=`<header class="top"><div class="wrap"><div class="brand"><h1><input type="text" id="apptitle" class="titlein" maxlength="60" value="${esc(S.title||'Stok Opname')}" style="width:${Math.min(40,Math.max(8,(S.title||'Stok Opname').length+1))}ch" title="Klik untuk mengganti judul" aria-label="Judul aplikasi"></h1><small>${S.products.length?fmt(S.products.length)+' produk · ':''}${storageOK?'tersimpan di browser ini':'penyimpanan tidak tersedia'}</small></div>
     <nav class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${t[0]===ui.tab}" data-act="tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav></div></header>
     <div class="wrap"><main>${storageOK?'':'<div class="banner">Browser tidak mengizinkan penyimpanan, jadi data hilang jika halaman ditutup. Gunakan Export & backup setelah bekerja.</div>'}${view()}</main></div>`;
   if(ui.tab==='stok'||ui.tab==='opname'||ui.tab==='rak'||ui.tab==='jual'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan|rkq|jscan|jnote|jdisc)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
@@ -1133,6 +1136,9 @@ Object.assign(ACT,{
     if(c.t==='baki')S.rak=RK().filter(r=>rkBlk(r)!==c.k);else if(c.t==='meja')S.rak=RK().filter(r=>r[0]!==c.k);else S.rak=RAKD.map(r=>r.slice());
     rkSave('Selesai.')}
 });
+document.addEventListener('change',e=>{if(e.target.id!=='apptitle')return;
+  const v=e.target.value.replace(/\s+/g,' ').trim().slice(0,60);S.title=v&&v!=='Stok Opname'?v:'';persist();render();toast(S.title?'Judul diganti.':'Judul dikembalikan ke “Stok Opname”.')});
+document.addEventListener('keydown',e=>{if(e.target.id==='apptitle'&&e.key==='Enter')e.target.blur()});
 document.addEventListener('toggle',e=>{if(e.target.id==='rk-atur')ui.rkAtur=e.target.open},true);
 document.addEventListener('change',e=>{const t=e.target;
   if(t.dataset.rkbn!==undefined){const b=rkB(t.dataset.rkbn),n=cl(t.value);
