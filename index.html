@@ -620,7 +620,7 @@ function vOpname(){
 }
 function selCell(p,c){if(c===undefined)return'<span class="muted">–</span>';const d=c-p.stock;return d===0?'<span class="pill good">cocok</span>':`<span class="${d>0?'pos':'neg'}">${d>0?'+':''}${fmt(d)}</span>`}
 function vRiwayat(){
-  const T={awal:['DATA AWAL','acc'],tambah:['TAMBAH','acc'],penjualan:['PENJUALAN','warn'],opname:['OPNAME','good'],hapus:['HAPUS','bad'],rak:['RAK','acc']};
+  const T={awal:['DATA AWAL','acc'],tambah:['TAMBAH','acc'],penjualan:['PENJUALAN','warn'],opname:['OPNAME','good'],hapus:['HAPUS','bad'],retur:['RETUR','warn'],rak:['RAK','acc']};
   return`<div class="card"><header><div><h2>Riwayat</h2><p>Setiap impor dan opname tercatat. Penjualan dan opname bisa dibatalkan.</p></div>
     ${hasPrev?confirmable('prev',`<button class="btn">Kembalikan data sebelum impor terakhir</button>`,`Kembalikan seluruh data ke kondisi sebelum "${hasPrev.label}" (${fmtTime(hasPrev.ts)})? Perubahan sesudahnya hilang.`,'restore-prev'):''}</header>
     ${S.logs.length?S.logs.slice(0,200).map(l=>`<div class="log ${l.undone?'undone':''}"><span class="pill ${(T[l.type]||['',''])[1]}">${(T[l.type]||[l.type])[0]}</span>
@@ -639,7 +639,7 @@ function vExport(){
     <div class="row"><button class="btn" data-act="backup" ${disabled}>Unduh backup (.json)</button><label class="btn" style="cursor:pointer">Pulihkan dari backup<input type="file" accept=".json" data-file="restore" hidden></label></div>
     ${ui.confirm&&ui.confirm.id==='restore'?`<div class="confirm" role="alert"><span>Pulihkan backup “${esc(ui.confirm.arg.name)}” (${fmt(ui.confirm.arg.n)} produk)? Data saat ini diganti.</span><button class="btn danger" data-act="yes">Ya, pulihkan</button><button class="btn" data-act="no">Batal</button></div>`:''}</div>`;
 }
-const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['jual','Penjualan',vJual],['rak','Rak',vRak],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
+const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['jual','Penjualan & Retur',vJual],['rak','Rak',vRak],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
 function render(){
   const app=$('#app');if(!app)return;
   const keepScan=document.activeElement&&document.activeElement.id;
@@ -946,9 +946,13 @@ document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='rkq'){clearTimeout(qT);qT=setTimeout(()=>{ui.rkQ=t.value;render()},250)}});
 
 /* ====================== penjualan manual (kurangi stok) ====================== */
-const CART=()=>S.cart||(S.cart=[]);
-Object.assign(ui,{jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
-function jStats(){const C=CART().filter(c=>IDX.has(c.k)),tot=C.reduce((a,c)=>a+c.qty,0),T=jualTot(C);
+const CART=()=>ui.jmode==='retur'?(S.cartR||(S.cartR=[])):(S.cart||(S.cart=[]));
+const setCart=a=>{if(ui.jmode==='retur')S.cartR=a;else S.cart=a};
+Object.assign(ui,{jmode:'jual',jq:'',jmsg:null,jnote:'',jdt:'rp',jdv:0});
+function jStats(){const C=CART().filter(c=>IDX.has(c.k)),tot=C.reduce((a,c)=>a+c.qty,0);
+  if(ui.jmode==='retur'){const v=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0);
+    return`<div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs retur</span><b>${fmt(tot)}</b></div><div><span>Nilai retur</span><b>${rp(v)}</b></div>`}
+  const T=jualTot(C);
   return`<div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Subtotal</span><b>${rp(T.sub)}</b></div>
     <div><span>Diskon</span><b class="${T.dis?'neg':''}">${T.dis?'-':''}${rp(T.dis)}</b></div><div><span>Total bayar</span><b>${rp(T.total)}</b></div>`}
 function jualTot(C){const sub=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0),v=Math.max(0,+ui.jdv||0);
@@ -957,36 +961,42 @@ function jualAdd(k,q){const c=CART().find(x=>x.k===k);if(c)c.qty+=q;else CART().
 function vJual(){
   if(!S.products.length)return vRingkasan();
   const C=CART().filter(c=>IDX.has(c.k)),m=ui.jmsg,q=norm(ui.jq);
-  const cand=q&&q.length>=2?S.products.filter(p=>norm(p.sku).includes(q)||norm(p.name).includes(q)).slice(0,8):[];
+  const R=ui.jmode==='retur',cand=q&&q.length>=2?S.products.filter(p=>norm(p.sku).includes(q)||norm(p.name).includes(q)).slice(0,8):[];
   const tot=C.reduce((a,c)=>a+c.qty,0),T=jualTot(C);
-  return`<div class="card"><header><div><h2>Penjualan</h2><p>Ketik atau scan SKU lalu Enter untuk menambah ke daftar. Setelah disimpan, stok berkurang dan tercatat di Riwayat (bisa dibatalkan). Untuk banyak transaksi sekaligus, pakai Import → penjualan.</p></div></header>
+  return`<div class="card"><header><div><h2>${R?'Retur':'Penjualan'}</h2><p>${R?'Ketik atau scan SKU barang yang diretur lalu Enter. Setelah disimpan, stok bertambah dan tercatat di Riwayat (bisa dibatalkan).':'Ketik atau scan SKU lalu Enter untuk menambah ke daftar. Setelah disimpan, stok berkurang dan tercatat di Riwayat (bisa dibatalkan). Untuk banyak transaksi sekaligus, pakai Import → penjualan.'}</p></div>
+    <span class="seg"><button data-act="jual-mode" data-v="jual" aria-pressed="${!R}">Penjualan</button><button data-act="jual-mode" data-v="retur" aria-pressed="${R}">Retur</button></span></header>
   <div class="row"><input type="text" id="jscan" class="grow" placeholder="Ketik / scan SKU atau nama, tekan Enter" value="${esc(ui.jq)}" autocomplete="off" aria-label="SKU penjualan"><label class="row small">Jumlah <input type="number" id="jqty" value="1" min="1"></label></div>
   ${m?`<div class="scanres ${m.err?'bad':''}" role="status">${m.err?`SKU “${esc(m.err)}” tidak ditemukan.`:`<b>${esc(m.p.name)}</b><span class="mono">${esc(m.p.sku)}</span><span>Stok ${fmt(m.p.stock)} · Rak: ${rkText(m.p)}</span>`}</div>`:''}
   ${cand.length?`<div class="chips">${cand.map(p=>`<button class="chip" data-act="jual-pick" data-k="${esc(p.k)}">${esc(p.sku)} · ${esc(p.name)}</button>`).join('')}</div>`:''}
-  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th>Rak</th><th class="num">Stok</th><th class="num">Jual</th><th class="num">Sisa</th><th></th></tr></thead><tbody>
-  ${C.map(c=>{const p=S.products[IDX.get(c.k)],s=p.stock-c.qty;return`<tr><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="small">${rkText(p)}</td><td class="num">${fmt(p.stock)}</td>
+  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th>Rak</th><th class="num">Stok</th><th class="num">${R?'Retur':'Jual'}</th><th class="num">${R?'Stok jadi':'Sisa'}</th><th></th></tr></thead><tbody>
+  ${C.map(c=>{const p=S.products[IDX.get(c.k)],s=R?p.stock+c.qty:p.stock-c.qty;return`<tr><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="small">${rkText(p)}</td><td class="num">${fmt(p.stock)}</td>
     <td class="num"><input type="number" class="jq" data-k="${esc(c.k)}" value="${c.qty}" min="1" aria-label="Jumlah ${esc(p.sku)}"></td><td class="num ${s<0?'neg':''}">${fmt(s)}${s<0?' <span class="pill bad">minus</span>':''}</td>
-    <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Belum ada barang di daftar penjualan.</td></tr>'}
+    <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Belum ada barang di daftar '+(R?'retur':'penjualan')+'.</td></tr>'}
   </tbody></table></div>
-  <div class="row"><input type="text" id="jnote" class="grow" placeholder="Catatan / no. nota (opsional)" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
-  <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
-    <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>
+  <div class="row"><input type="text" id="jnote" class="grow" placeholder="${R?'Alasan retur / no. nota (opsional)':'Catatan / no. nota (opsional)'}" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
+  ${R?'':`  <div class="row"><span class="small">Diskon</span><span class="seg"><button data-act="jual-dt" data-v="rp" aria-pressed="${ui.jdt==='rp'}">Rp</button><button data-act="jual-dt" data-v="pct" aria-pressed="${ui.jdt==='pct'}">%</button></span>
+    <input type="number" id="jdisc" min="0" ${ui.jdt==='pct'?'max="100"':''} value="${ui.jdv||''}" placeholder="0" aria-label="Diskon"></div>`}
   <div class="stats" id="jstats">${jStats()}</div>
-  <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`+vJualHist();
+  <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>${R?'Simpan retur & tambah stok':'Simpan penjualan & kurangi stok'}</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`+vJualHist();
 }
 function jualSave(){
   const C=CART().filter(c=>IDX.has(c.k));if(!C.length)return;
-  const changes=[];let pcs=0;
-  for(const c of C){const p=S.products[IDX.get(c.k)];p.stock-=c.qty;pcs+=c.qty;changes.push({k:c.k,d:-c.qty})}
-  const note=ui.jnote.trim(),T=jualTot(C);
-  addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual · Subtotal ${rp(T.sub)}`+(T.dis?` · Diskon ${rp(T.dis)}`+(ui.jdt==='pct'?` (${+ui.jdv}%)`:''):'')+` · Total ${rp(T.total)}`,subtotal:T.sub,diskon:T.dis,total:T.total});
-  S.cart=[];ui.jmsg=null;ui.jq='';ui.jnote='';ui.jdv=0;toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`);persist();render();
+  const R=ui.jmode==='retur',changes=[];let pcs=0,val=0;
+  for(const c of C){const p=S.products[IDX.get(c.k)];p.stock+=R?c.qty:-c.qty;pcs+=c.qty;val+=c.qty*p.sell;changes.push({k:c.k,d:R?c.qty:-c.qty})}
+  const note=ui.jnote.trim();
+  if(R){addLog({type:'retur',label:'Retur'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs diretur · Nilai ${rp(val)}`,subtotal:val,total:val});
+    toast(`Stok ditambah: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`)}
+  else{const T=jualTot(C);
+    addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual · Subtotal ${rp(T.sub)}`+(T.dis?` · Diskon ${rp(T.dis)}`+(ui.jdt==='pct'?` (${+ui.jdv}%)`:''):'')+` · Total ${rp(T.total)}`,subtotal:T.sub,diskon:T.dis,total:T.total});
+    toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`)}
+  setCart([]);ui.jmsg=null;ui.jq='';ui.jnote='';ui.jdv=0;persist();render();
 }
 Object.assign(ACT,{
   'jual-pick':d=>{const p=S.products[IDX.get(d.k)];jualAdd(d.k,Math.max(1,Math.floor(+$('#jqty').value||1)));ui.jmsg={p};ui.jq='';render();$('#jscan').focus()},
-  'jual-del':d=>{S.cart=CART().filter(c=>c.k!==d.k);persist();render()},
+  'jual-del':d=>{setCart(CART().filter(c=>c.k!==d.k));persist();render()},
   'jual-dt':d=>{ui.jdt=d.v;render()},
-  'jual-clear':()=>{S.cart=[];ui.jmsg=null;ui.jdv=0;persist();render()},
+  'jual-mode':d=>{ui.jmode=d.v;ui.jmsg=null;ui.jq='';ui.jnote='';render()},
+  'jual-clear':()=>{setCart([]);ui.jmsg=null;ui.jdv=0;persist();render()},
   'jual-save':jualSave
 });
 document.addEventListener('keydown',e=>{
@@ -1009,11 +1019,12 @@ Object.assign(ui,{hpMode:'hari',hpM:''});
 const dKey=ts=>{const d=new Date(ts),z=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+z(d.getMonth()+1)+'-'+z(d.getDate())};
 const dLab=k=>k.length===7?new Date(k+'-01T00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric'}):new Date(k+'T00:00').toLocaleDateString('id-ID',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
 function jualTx(){
-  return S.logs.filter(l=>l.type==='penjualan'&&!l.undone).map(l=>{
+  return S.logs.filter(l=>(l.type==='penjualan'||l.type==='retur')&&!l.undone).map(l=>{
     const pcs=(l.changes||[]).reduce((a,c)=>a-c.d,0);
     const sub=l.subtotal!==undefined?l.subtotal:(l.changes||[]).reduce((a,c)=>{const p=S.products[IDX.get(c.k)];return a-c.d*(p?p.sell:0)},0);
+    if(l.type==='retur'){const v=l.total!==undefined?l.total:(l.changes||[]).reduce((a,c)=>{const p=S.products[IDX.get(c.k)];return a+c.d*(p?p.sell:0)},0);return{l,ts:l.ts,pcs:0,rpcs:(l.changes||[]).reduce((a,c)=>a+c.d,0),sub:0,dis:0,total:0,ret:v,est:false,isR:true}}
     const dis=l.diskon||0;
-    return{l,ts:l.ts,pcs,sub,dis,total:l.total!==undefined?l.total:sub-dis,est:l.subtotal===undefined}});
+    return{l,ts:l.ts,pcs,rpcs:0,ret:0,sub,dis,total:l.total!==undefined?l.total:sub-dis,est:l.subtotal===undefined}});
 }
 function hpGroups(){
   const all=jualTx(),months=[...new Set(all.map(t=>dKey(t.ts).slice(0,7)))].sort().reverse();
@@ -1021,26 +1032,26 @@ function hpGroups(){
   const tx=ui.hpMode==='hari'&&ui.hpM?all.filter(t=>dKey(t.ts).startsWith(ui.hpM)):all;
   const m=new Map();
   for(const t of tx){const k=ui.hpMode==='bulan'?dKey(t.ts).slice(0,7):dKey(t.ts);
-    const g=m.get(k)||m.set(k,{k,n:0,pcs:0,sub:0,dis:0,total:0,est:false,tx:[]}).get(k);
-    g.n++;g.pcs+=t.pcs;g.sub+=t.sub;g.dis+=t.dis;g.total+=t.total;g.est=g.est||t.est;g.tx.push(t)}
+    const g=m.get(k)||m.set(k,{k,n:0,pcs:0,rpcs:0,ret:0,sub:0,dis:0,total:0,est:false,tx:[]}).get(k);
+    if(!t.isR)g.n++;g.pcs+=t.pcs;g.rpcs+=t.rpcs;g.ret+=t.ret;g.sub+=t.sub;g.dis+=t.dis;g.total+=t.total;g.est=g.est||t.est;g.tx.push(t)}
   return{months,list:[...m.values()].sort((a,b)=>a.k<b.k?1:-1)};
 }
 function vJualHist(){
-  const{months,list}=hpGroups(),T=list.reduce((a,g)=>({n:a.n+g.n,pcs:a.pcs+g.pcs,sub:a.sub+g.sub,dis:a.dis+g.dis,total:a.total+g.total}),{n:0,pcs:0,sub:0,dis:0,total:0});
+  const{months,list}=hpGroups(),T=list.reduce((a,g)=>({n:a.n+g.n,pcs:a.pcs+g.pcs,rpcs:a.rpcs+g.rpcs,ret:a.ret+g.ret,sub:a.sub+g.sub,dis:a.dis+g.dis,total:a.total+g.total}),{n:0,pcs:0,rpcs:0,ret:0,sub:0,dis:0,total:0});
   const est=list.some(g=>g.est);
-  return`<div class="card"><header><div><h2>Riwayat penjualan</h2><p>Penjualan yang sudah disimpan, dikelompokkan per periode. Penjualan yang dibatalkan tidak dihitung.</p></div>
+  return`<div class="card"><header><div><h2>Riwayat penjualan</h2><p>Penjualan yang sudah disimpan, dikelompokkan per periode. Retur mengurangi total. Transaksi yang dibatalkan tidak dihitung.</p></div>
     <div class="row"><span class="seg"><button data-act="hp-mode" data-v="hari" aria-pressed="${ui.hpMode==='hari'}">Per hari</button><button data-act="hp-mode" data-v="bulan" aria-pressed="${ui.hpMode==='bulan'}">Per bulan</button></span>
     ${ui.hpMode==='hari'?`<select id="hpm" aria-label="Bulan"><option value="">Semua bulan</option>${months.map(m=>`<option value="${m}" ${m===ui.hpM?'selected':''}>${esc(dLab(m))}</option>`).join('')}</select>`:''}
     <button class="btn" data-act="exp-hp" ${list.length?'':'disabled'}>Unduh Excel</button></div></header>
-  ${list.length?`<div class="tablebox"><table><thead><tr><th>Periode</th><th class="num">Transaksi</th><th class="num">Pcs</th><th class="num">Subtotal</th><th class="num">Diskon</th><th class="num">Total</th></tr></thead><tbody>
-  ${list.map(g=>`<tr><td><details><summary>${esc(dLab(g.k))}</summary><div class="small" style="padding:6px 0">${g.tx.sort((a,b)=>b.ts-a.ts).map(t=>`<div style="padding:4px 0;border-top:1px solid var(--line)"><b>${esc(t.l.label)}</b> · <span class="muted">${fmtTime(t.ts)}</span><br>${fmt(t.pcs)} pcs · ${rp(t.total)}${t.dis?` (diskon ${rp(t.dis)})`:''}${t.l.file?' · '+esc(t.l.file):''}<br><span class="muted">${(t.l.changes||[]).slice(0,12).map(c=>{const p=S.products[IDX.get(c.k)];return esc(p?p.sku:c.k)+' ×'+fmt(-c.d)}).join(', ')}${(t.l.changes||[]).length>12?' …':''}</span></div>`).join('')}</div></details></td>
-    <td class="num">${fmt(g.n)}</td><td class="num">${fmt(g.pcs)}</td><td class="num">${rp(g.sub)}</td><td class="num">${g.dis?'-'+rp(g.dis):rp(0)}</td><td class="num"><b>${rp(g.total)}</b></td></tr>`).join('')}
-  </tbody><tfoot><tr><td>Total</td><td class="num">${fmt(T.n)}</td><td class="num">${fmt(T.pcs)}</td><td class="num">${rp(T.sub)}</td><td class="num">${T.dis?'-'+rp(T.dis):rp(0)}</td><td class="num">${rp(T.total)}</td></tr></tfoot></table></div>
+  ${list.length?`<div class="tablebox"><table><thead><tr><th>Periode</th><th class="num">Transaksi</th><th class="num">Pcs</th><th class="num">Subtotal</th><th class="num">Diskon</th><th class="num">Total jual</th><th class="num">Retur</th><th class="num">Bersih</th></tr></thead><tbody>
+  ${list.map(g=>`<tr><td><details><summary>${esc(dLab(g.k))}</summary><div class="small" style="padding:6px 0">${g.tx.sort((a,b)=>b.ts-a.ts).map(t=>`<div style="padding:4px 0;border-top:1px solid var(--line)">${t.isR?'<span class="pill warn">RETUR</span> ':''}<b>${esc(t.l.label)}</b> · <span class="muted">${fmtTime(t.ts)}</span><br>${t.isR?fmt(t.rpcs)+' pcs retur · -'+rp(t.ret):fmt(t.pcs)+' pcs · '+rp(t.total)}${t.dis?` (diskon ${rp(t.dis)})`:''}${t.l.file?' · '+esc(t.l.file):''}<br><span class="muted">${(t.l.changes||[]).slice(0,12).map(c=>{const p=S.products[IDX.get(c.k)];return esc(p?p.sku:c.k)+' ×'+fmt(Math.abs(c.d))}).join(', ')}${(t.l.changes||[]).length>12?' …':''}</span></div>`).join('')}</div></details></td>
+    <td class="num">${fmt(g.n)}</td><td class="num">${fmt(g.pcs)}</td><td class="num">${rp(g.sub)}</td><td class="num">${g.dis?'-'+rp(g.dis):rp(0)}</td><td class="num">${rp(g.total)}</td><td class="num">${g.ret?'-'+rp(g.ret)+' <span class="muted small">('+fmt(g.rpcs)+' pcs)</span>':rp(0)}</td><td class="num"><b>${rp(g.total-g.ret)}</b></td></tr>`).join('')}
+  </tbody><tfoot><tr><td>Total</td><td class="num">${fmt(T.n)}</td><td class="num">${fmt(T.pcs)}</td><td class="num">${rp(T.sub)}</td><td class="num">${T.dis?'-'+rp(T.dis):rp(0)}</td><td class="num">${rp(T.total)}</td><td class="num">${T.ret?'-'+rp(T.ret):rp(0)}</td><td class="num">${rp(T.total-T.ret)}</td></tr></tfoot></table></div>
   ${est?'<p class="muted small">Penjualan hasil import file tidak menyimpan harga, jadi nilainya dihitung dari harga jual produk saat ini.</p>':''}`:'<p class="muted">Belum ada penjualan tersimpan.</p>'}</div>`;
 }
 Object.assign(ACT,{
   'hp-mode':d=>{ui.hpMode=d.v;render()},
-  'exp-hp':()=>{const{list}=hpGroups();saveXlsx(`riwayat-penjualan-${ui.hpMode}-${stamp()}.xlsx`,[{name:'Penjualan',widths:[22,12,10,16,16,16],rows:[['Periode','Transaksi','Pcs','Subtotal','Diskon','Total'],...list.map(g=>[dLab(g.k),g.n,g.pcs,g.sub,g.dis,g.total])]}])}
+  'exp-hp':()=>{const{list}=hpGroups();saveXlsx(`riwayat-penjualan-${ui.hpMode}-${stamp()}.xlsx`,[{name:'Penjualan',widths:[22,12,10,16,16,16,12,16,16],rows:[['Periode','Transaksi','Pcs terjual','Subtotal','Diskon','Total jual','Pcs retur','Nilai retur','Bersih'],...list.map(g=>[dLab(g.k),g.n,g.pcs,g.sub,g.dis,g.total,g.rpcs,g.ret,g.total-g.ret])]}])}
 });
 document.addEventListener('change',e=>{if(e.target.id==='hpm'){ui.hpM=e.target.value;render()}});
 
