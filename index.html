@@ -639,7 +639,7 @@ function vExport(){
     <div class="row"><button class="btn" data-act="backup" ${disabled}>Unduh backup (.json)</button><label class="btn" style="cursor:pointer">Pulihkan dari backup<input type="file" accept=".json" data-file="restore" hidden></label></div>
     ${ui.confirm&&ui.confirm.id==='restore'?`<div class="confirm" role="alert"><span>Pulihkan backup “${esc(ui.confirm.arg.name)}” (${fmt(ui.confirm.arg.n)} produk)? Data saat ini diganti.</span><button class="btn danger" data-act="yes">Ya, pulihkan</button><button class="btn" data-act="no">Batal</button></div>`:''}</div>`;
 }
-const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['rak','Rak',vRak],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
+const TABS=[['ringkasan','Ringkasan',vRingkasan],['stok','Daftar stok',vStok],['import','Import',vImport],['tambah','Tambah barang',vTambah],['kode','Kode (MAP)',vKode],['opname','Opname',vOpname],['jual','Penjualan',vJual],['rak','Rak',vRak],['riwayat','Riwayat',vRiwayat],['export','Export & backup',vExport]];
 function render(){
   const app=$('#app');if(!app)return;
   const keepScan=document.activeElement&&document.activeElement.id;
@@ -647,7 +647,7 @@ function render(){
   app.innerHTML=`<header class="top"><div class="wrap"><div class="brand"><h1>Stok Opname</h1><small>${S.products.length?fmt(S.products.length)+' produk · ':''}${storageOK?'tersimpan di browser ini':'penyimpanan tidak tersedia'}</small></div>
     <nav class="tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${t[0]===ui.tab}" data-act="tab" data-tab="${t[0]}">${t[1]}</button>`).join('')}</nav></div></header>
     <div class="wrap"><main>${storageOK?'':'<div class="banner">Browser tidak mengizinkan penyimpanan, jadi data hilang jika halaman ditutup. Gunakan Export & backup setelah bekerja.</div>'}${view()}</main></div>`;
-  if(ui.tab==='stok'||ui.tab==='opname'||ui.tab==='rak'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan|rkq)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
+  if(ui.tab==='stok'||ui.tab==='opname'||ui.tab==='rak'||ui.tab==='jual'){const el=keepScan&&document.getElementById(keepScan);if(el&&/^(q|opq|scan|rkq|jscan|jnote)$/.test(keepScan)){el.focus();const l=el.value.length;try{el.setSelectionRange(l,l)}catch(e){}}}
 }
 
 /* ====================== export builders ====================== */
@@ -944,6 +944,56 @@ document.addEventListener('change',e=>{const t=e.target;
   else if(t.id==='opr'){ui.opRak=t.value;ui.opPage=0;render()}});
 document.addEventListener('input',e=>{const t=e.target;
   if(t.id==='rkq'){clearTimeout(qT);qT=setTimeout(()=>{ui.rkQ=t.value;render()},250)}});
+
+/* ====================== penjualan manual (kurangi stok) ====================== */
+const CART=()=>S.cart||(S.cart=[]);
+Object.assign(ui,{jq:'',jmsg:null,jnote:''});
+function jualAdd(k,q){const c=CART().find(x=>x.k===k);if(c)c.qty+=q;else CART().push({k,qty:q});persist()}
+function vJual(){
+  if(!S.products.length)return vRingkasan();
+  const C=CART().filter(c=>IDX.has(c.k)),m=ui.jmsg,q=norm(ui.jq);
+  const cand=q&&q.length>=2?S.products.filter(p=>norm(p.sku).includes(q)||norm(p.name).includes(q)).slice(0,8):[];
+  const tot=C.reduce((a,c)=>a+c.qty,0),val=C.reduce((a,c)=>a+c.qty*S.products[IDX.get(c.k)].sell,0);
+  return`<div class="card"><header><div><h2>Penjualan</h2><p>Ketik atau scan SKU lalu Enter untuk menambah ke daftar. Setelah disimpan, stok berkurang dan tercatat di Riwayat (bisa dibatalkan). Untuk banyak transaksi sekaligus, pakai Import → penjualan.</p></div></header>
+  <div class="row"><input type="text" id="jscan" class="grow" placeholder="Ketik / scan SKU atau nama, tekan Enter" value="${esc(ui.jq)}" autocomplete="off" aria-label="SKU penjualan"><label class="row small">Jumlah <input type="number" id="jqty" value="1" min="1"></label></div>
+  ${m?`<div class="scanres ${m.err?'bad':''}" role="status">${m.err?`SKU “${esc(m.err)}” tidak ditemukan.`:`<b>${esc(m.p.name)}</b><span class="mono">${esc(m.p.sku)}</span><span>Stok ${fmt(m.p.stock)} · Rak: ${rkText(m.p)}</span>`}</div>`:''}
+  ${cand.length?`<div class="chips">${cand.map(p=>`<button class="chip" data-act="jual-pick" data-k="${esc(p.k)}">${esc(p.sku)} · ${esc(p.name)}</button>`).join('')}</div>`:''}
+  <div class="tablebox"><table><thead><tr><th>SKU</th><th>Produk</th><th>Rak</th><th class="num">Stok</th><th class="num">Jual</th><th class="num">Sisa</th><th></th></tr></thead><tbody>
+  ${C.map(c=>{const p=S.products[IDX.get(c.k)],s=p.stock-c.qty;return`<tr><td class="mono">${esc(p.sku)}</td><td class="name">${esc(p.name)}</td><td class="small">${rkText(p)}</td><td class="num">${fmt(p.stock)}</td>
+    <td class="num"><input type="number" class="jq" data-k="${esc(c.k)}" value="${c.qty}" min="1" aria-label="Jumlah ${esc(p.sku)}"></td><td class="num ${s<0?'neg':''}">${fmt(s)}${s<0?' <span class="pill bad">minus</span>':''}</td>
+    <td><button class="btn ghost" data-act="jual-del" data-k="${esc(c.k)}">Hapus</button></td></tr>`}).join('')||'<tr><td colspan="7" class="muted">Belum ada barang di daftar penjualan.</td></tr>'}
+  </tbody></table></div>
+  <div class="row"><input type="text" id="jnote" class="grow" placeholder="Catatan / no. nota (opsional)" value="${esc(ui.jnote)}" aria-label="Catatan"></div>
+  <div class="stats"><div><span>Barang</span><b>${fmt(C.length)}</b></div><div><span>Total pcs</span><b>${fmt(tot)}</b></div><div><span>Nilai jual</span><b>${rp(val)}</b></div></div>
+  <div class="row"><button class="btn primary" data-act="jual-save" ${C.length?'':'disabled'}>Simpan penjualan & kurangi stok</button>${C.length?`<button class="btn ghost" data-act="jual-clear">Kosongkan daftar</button>`:''}</div></div>`;
+}
+function jualSave(){
+  const C=CART().filter(c=>IDX.has(c.k));if(!C.length)return;
+  const changes=[];let pcs=0;
+  for(const c of C){const p=S.products[IDX.get(c.k)];p.stock-=c.qty;pcs+=c.qty;changes.push({k:c.k,d:-c.qty})}
+  const note=ui.jnote.trim();
+  addLog({type:'penjualan',label:'Penjualan manual'+(note?' – '+note:''),changes,info:`${fmt(C.length)} produk · ${fmt(pcs)} pcs terjual`});
+  S.cart=[];ui.jmsg=null;ui.jq='';ui.jnote='';toast(`Stok dikurangi: ${fmt(pcs)} pcs dari ${fmt(C.length)} produk.`);persist();render();
+}
+Object.assign(ACT,{
+  'jual-pick':d=>{const p=S.products[IDX.get(d.k)];jualAdd(d.k,Math.max(1,Math.floor(+$('#jqty').value||1)));ui.jmsg={p};ui.jq='';render();$('#jscan').focus()},
+  'jual-del':d=>{S.cart=CART().filter(c=>c.k!==d.k);persist();render()},
+  'jual-clear':()=>{S.cart=[];ui.jmsg=null;persist();render()},
+  'jual-save':jualSave
+});
+document.addEventListener('keydown',e=>{
+  if(e.target.id!=='jscan'||e.key!=='Enter')return;
+  e.preventDefault();const v=e.target.value.trim();if(!v)return;
+  const q=Math.max(1,Math.floor(+$('#jqty').value||1));let i=IDX.get(norm(v));
+  if(i===undefined){const hits=S.products.filter(p=>norm(p.sku)===norm(v)||(p.bc&&norm(p.bc)===norm(v)));if(hits.length)i=IDX.get(hits[0].k)}
+  if(i===undefined){ui.jmsg={err:v};ui.jq=v}else{const p=S.products[i];jualAdd(p.k,q);ui.jmsg={p};ui.jq=''}
+  render();const s=$('#jscan');if(s){s.value=ui.jq;s.focus()}
+});
+document.addEventListener('input',e=>{const t=e.target;
+  if(t.classList.contains('jq')){const c=CART().find(x=>x.k===t.dataset.k);if(c){c.qty=Math.max(1,Math.floor(+t.value||1));persist()}}
+  else if(t.id==='jnote')ui.jnote=t.value;
+  else if(t.id==='jscan'){clearTimeout(qT);qT=setTimeout(()=>{ui.jq=t.value;ui.jmsg=null;render()},250)}});
+document.addEventListener('change',e=>{if(e.target.classList.contains('jq'))render()});
 
 /* ====================== events ====================== */
 document.addEventListener('click',e=>{
