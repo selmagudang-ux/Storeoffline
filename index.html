@@ -906,7 +906,7 @@ function rkBlocks(){const m=new Map();
 function rkSel(){return`<select id="opr" aria-label="Rak"><option value="">Semua rak</option>${rkBlocks().map(b=>`<option value="${esc(b.k)}" ${b.k===ui.opRak?'selected':''}>${esc(b.meja+' · '+b.kat+' · '+b.baki)}</option>`).join('')}</select>`}
 function vRak(){
   const all=rkBlocks(),mejas=[...new Set(all.map(b=>b.meja))];
-  if(!mejas.length)return`<div class="card empty"><h2>Belum ada data rak</h2><p>Impor file Excel penempatan rak (sheet “Meja 1”, “Meja 2”).</p><label class="btn primary" style="cursor:pointer">Impor rak dari Excel<input type="file" accept=".xlsx" data-file="rak" hidden></label></div>`;
+  if(!mejas.length)return`<div class="card empty"><h2>Belum ada data rak</h2><p>Impor file Excel penempatan rak (sheet “Meja 1”, “Meja 2”).</p><label class="btn primary" style="cursor:pointer">Impor rak dari Excel<input type="file" accept=".xlsx" data-file="rak" hidden></label></div>`+rkAtur();
   if(!mejas.includes(ui.rkM))ui.rkM=mejas[0];
   const mb=all.filter(b=>b.meja===ui.rkM),kats=[...new Set(mb.map(b=>b.kat))];
   if(!kats.includes(ui.rkK))ui.rkK=kats[0];
@@ -921,10 +921,13 @@ function vRak(){
     <select id="rkk" aria-label="Kategori" ${q?'disabled':''}>${kats.map(k=>`<option ${k===ui.rkK?'selected':''}>${esc(k)}</option>`).join('')}</select>
     <input type="search" id="rkq" class="grow" placeholder="Cari kode, SKU, atau nama produk" value="${esc(ui.rkQ)}" aria-label="Cari di rak"></div>
   <p class="muted small">${q?`${fmt(hit.size)} posisi cocok di ${esc(ui.rkM)}`:`${fmt(cap)} posisi terisi di kategori ini`}</p></div>
-  ${bl.map(b=>`<div class="card"><header><div><h3>${esc(b.kat)} · ${esc(b.baki)}</h3><p>${fmt(b.filled)} terisi</p></div></header><div class="tablebox"><table><thead><tr><th>#</th>${b.cols.map(c=>`<th>${esc(c||'Kode')}</th>`).join('')}</tr></thead><tbody>
+  ${rkConfirm()}
+  ${bl.map(b=>`<div class="card"><header><div><p class="muted small">${esc(b.kat)} · ${fmt(b.filled)} terisi</p><input type="text" data-rkbn="${esc(b.k)}" value="${esc(b.baki)}" aria-label="Nama baki" style="font-weight:600;font-size:1rem;width:180px"></div>
+    <div class="row">${b.cols[0]===''?'':`<button class="btn" data-act="rk-addcol" data-b="${esc(b.k)}">+ Kolom</button><button class="btn" data-act="rk-delcol" data-b="${esc(b.k)}">− Kolom</button>`}<button class="btn ghost" data-act="rk-delbaki" data-b="${esc(b.k)}">Hapus baki</button></div></header><div class="tablebox"><table><thead><tr><th>#</th>${b.cols.map(c=>`<th>${c===''?'Kode':`<input type="text" data-rkcb="${esc(b.k)}" data-rkcc="${esc(c)}" value="${esc(c)}" aria-label="Nama kolom" style="width:60px;padding:4px 6px;text-align:center;font-weight:600">`}</th>`).join('')}</tr></thead><tbody>
     ${Array.from({length:b.max+1},(_,n)=>n+1).map(n=>`<tr><td class="muted">${n}</td>${b.cols.map(c=>{const i=b.cell.get(c+'|'+n),v=i===undefined?'':R[i][5];
       return`<td style="padding:3px 4px"><input type="text" class="mono" style="width:96px;padding:4px 6px;${i!==undefined&&hit.has(i)?'background:var(--accent-soft);border-color:var(--accent)':''}" data-rk="${esc([b.k,c,n].join('|'))}" value="${esc(v)}" aria-label="${esc(b.kat+' '+b.baki+' '+(c||'')+n)}"></td>`}).join('')}</tr>`).join('')}
-    </tbody></table></div></div>`).join('')||'<div class="card"><p class="muted">Tidak ada posisi yang cocok.</p></div>'}`;
+    </tbody></table></div></div>`).join('')||'<div class="card"><p class="muted">Tidak ada posisi yang cocok.</p></div>'}
+  ${rkAtur()}`;
 }
 function rkEdit(t){
   const[meja,kat,baki,kol,no]=t.dataset.rk.split('|'),n=+no,v=t.value.trim(),R=RK();
@@ -1081,6 +1084,65 @@ Object.assign(ACT,{
   'exp-hp':()=>{const{list}=hpGroups();saveXlsx(`riwayat-penjualan-${ui.hpMode}-${stamp()}.xlsx`,[{name:'Penjualan',widths:[22,12,10,16,16,16,12,16,16],rows:[['Periode','Transaksi','Pcs terjual','Subtotal','Diskon','Total jual','Pcs retur','Nilai retur','Bersih'],...list.map(g=>[dLab(g.k),g.n,g.pcs,g.sub,g.dis,g.total,g.rpcs,g.ret,g.total-g.ret])]}])}
 });
 document.addEventListener('change',e=>{if(e.target.id==='hpm'){ui.hpM=e.target.value;render()}});
+
+/* ====================== atur rak (custom meja / kategori / baki / kolom) ====================== */
+Object.assign(ui,{rkDel:null,rkAtur:false});
+const cl=s=>String(s||'').replace(/\|/g,'/').trim();
+const rkSave=msg=>{rkReset();persist();render();if(msg)toast(msg)};
+const rkB=k=>rkBlocks().find(b=>b.k===k);
+function rkNextCol(cols){const L=cols.filter(Boolean);
+  if(L.length&&L.every(c=>/^[A-Y]$/.test(c)))return String.fromCharCode(Math.max(...L.map(c=>c.charCodeAt(0)))+1);
+  const N=L.map(Number);if(L.length&&N.every(n=>!isNaN(n)))return String(Math.max(...N)+1);return String(L.length+1)}
+function rkConfirm(){const c=ui.rkDel;if(!c)return'';
+  const m=c.t==='baki'?`Hapus baki “${(rkB(c.k)||{}).baki||''}” beserta semua isinya?`:c.t==='meja'?`Hapus ${c.k} beserta semua kategori, baki, dan isinya?`:'Kembalikan data rak ke data awal dari Excel? Semua perubahan Anda di rak hilang.';
+  return`<div class="confirm" role="alert"><span>${esc(m)}</span><button class="btn danger" data-act="rk-yes">Ya, lanjut</button><button class="btn" data-act="rk-no">Batal</button></div>`}
+function rkAtur(){
+  const all=rkBlocks(),mejas=[...new Set(all.map(b=>b.meja))],kats=[...new Set(all.filter(b=>b.meja===ui.rkM).map(b=>b.kat))],has=mejas.includes(ui.rkM);
+  return`<details class="card" id="rk-atur" ${ui.rkAtur||!has?'open':''}><summary>Atur rak: tambah, ubah nama, atau hapus meja, kategori, baki, dan kolom</summary>
+  <div style="display:flex;flex-direction:column;gap:14px;margin-top:12px">
+  <div><h3>Tambah baki</h3><p class="muted small">Ketik nama meja baru untuk membuat meja baru. Kategori dan baki juga bebas diberi nama.</p>
+    <div class="row" style="margin-top:8px"><input type="text" id="ab-meja" list="dl-meja" placeholder="Meja (mis. Meja 3)" value="${esc(has?ui.rkM:'')}" aria-label="Meja"><input type="text" id="ab-kat" list="dl-kat" placeholder="Kategori (mis. Cincin YXY)" value="${esc(has?ui.rkK:'')}" aria-label="Kategori"><input type="text" id="ab-baki" placeholder="Baki (mis. Baki C)" aria-label="Nama baki">
+    <label class="row small">Kolom <input type="number" id="ab-n" value="4" min="1" max="40"></label>
+    <select id="ab-type" aria-label="Label kolom"><option value="huruf">Label huruf (A, B, C)</option><option value="angka">Label angka (1, 2, 3)</option><option value="satu">Satu kolom saja</option></select>
+    <button class="btn primary" data-act="rk-add-baki">Tambah baki</button></div>
+    <datalist id="dl-meja">${mejas.map(m=>`<option value="${esc(m)}">`).join('')}</datalist><datalist id="dl-kat">${kats.map(k=>`<option value="${esc(k)}">`).join('')}</datalist></div>
+  ${has?`<div><h3>Ubah nama</h3><div class="row" style="margin-top:8px"><input type="text" id="rk-nm-meja" value="${esc(ui.rkM)}" aria-label="Nama meja"><button class="btn" data-act="rk-ren-meja">Ubah nama meja</button>
+    <input type="text" id="rk-nm-kat" value="${esc(ui.rkK)}" aria-label="Nama kategori"><button class="btn" data-act="rk-ren-kat">Ubah nama kategori</button></div>
+    <p class="muted small" style="margin-top:6px">Nama baki dan nama kolom diubah langsung di judul tiap tabel di atas.</p></div>`:''}
+  <div class="row">${has?`<button class="btn" data-act="rk-delmeja">Hapus ${esc(ui.rkM)}</button>`:''}<button class="btn" data-act="rk-resetdata">Kembalikan ke data awal Excel</button></div></div></details>`}
+Object.assign(ACT,{
+  'rk-ren-meja':()=>{const n=cl($('#rk-nm-meja').value);if(!n||n===ui.rkM)return;if(RK().some(r=>r[0]===n)){toast('Nama meja sudah dipakai.');return}
+    RK().forEach(r=>{if(r[0]===ui.rkM)r[0]=n});ui.rkM=n;rkSave('Nama meja diubah.')},
+  'rk-ren-kat':()=>{const n=cl($('#rk-nm-kat').value);if(!n||n===ui.rkK)return;if(RK().some(r=>r[0]===ui.rkM&&r[1]===n)){toast('Nama kategori sudah dipakai di meja ini.');return}
+    RK().forEach(r=>{if(r[0]===ui.rkM&&r[1]===ui.rkK)r[1]=n});ui.rkK=n;rkSave('Nama kategori diubah.')},
+  'rk-add-baki':()=>{const m=cl($('#ab-meja').value),k=cl($('#ab-kat').value),b=cl($('#ab-baki').value),n=Math.max(1,Math.floor(+$('#ab-n').value||1)),t=$('#ab-type').value;
+    if(!m||!k||!b){toast('Isi nama meja, kategori, dan baki.');return}
+    if(RK().some(r=>r[0]===m&&r[1]===k&&r[2]===b)){toast('Baki itu sudah ada di kategori ini.');return}
+    const cols=t==='satu'?['']:t==='angka'?Array.from({length:Math.min(n,40)},(_,i)=>String(i+1)):Array.from({length:Math.min(n,25)},(_,i)=>String.fromCharCode(65+i));
+    cols.forEach(c=>RK().push([m,k,b,c,0,'']));ui.rkM=m;ui.rkK=k;ui.rkQ='';ui.rkAtur=true;rkSave('Baki ditambahkan.')},
+  'rk-addcol':d=>{const b=rkB(d.b);if(!b||b.cols[0]==='')return;RK().push([b.meja,b.kat,b.baki,rkNextCol(b.cols),0,'']);rkSave()},
+  'rk-delcol':d=>{const b=rkB(d.b);if(!b)return;if(b.cols.length<2){toast('Minimal harus ada satu kolom.');return}
+    const c=b.cols[b.cols.length-1];
+    if(RK().some(r=>rkBlk(r)===b.k&&r[3]===c&&r[4]>0&&r[5])){toast(`Kolom ${c} masih berisi. Kosongkan dulu sebelum dihapus.`);return}
+    S.rak=RK().filter(r=>!(rkBlk(r)===b.k&&r[3]===c));rkSave()},
+  'rk-delbaki':d=>{ui.rkDel={t:'baki',k:d.b};render()},
+  'rk-delmeja':()=>{ui.rkDel={t:'meja',k:ui.rkM};render()},
+  'rk-resetdata':()=>{ui.rkDel={t:'reset'};render()},
+  'rk-no':()=>{ui.rkDel=null;render()},
+  'rk-yes':()=>{const c=ui.rkDel;ui.rkDel=null;if(!c)return;
+    if(c.t==='baki')S.rak=RK().filter(r=>rkBlk(r)!==c.k);else if(c.t==='meja')S.rak=RK().filter(r=>r[0]!==c.k);else S.rak=RAKD.map(r=>r.slice());
+    rkSave('Selesai.')}
+});
+document.addEventListener('toggle',e=>{if(e.target.id==='rk-atur')ui.rkAtur=e.target.open},true);
+document.addEventListener('change',e=>{const t=e.target;
+  if(t.dataset.rkbn!==undefined){const b=rkB(t.dataset.rkbn),n=cl(t.value);
+    if(!b||!n||n===b.baki){render();return}
+    if(RK().some(r=>r[0]===b.meja&&r[1]===b.kat&&r[2]===n)){toast('Nama baki sudah ada di kategori ini.');render();return}
+    RK().forEach(r=>{if(rkBlk(r)===b.k)r[2]=n});rkSave()}
+  else if(t.dataset.rkcb!==undefined){const b=rkB(t.dataset.rkcb),o=t.dataset.rkcc,n=cl(t.value);
+    if(!b||!n||n===o){render();return}
+    if(b.cols.includes(n)){toast('Nama kolom sudah dipakai di baki ini.');render();return}
+    RK().forEach(r=>{if(rkBlk(r)===b.k&&r[3]===o)r[3]=n});rkSave()}});
 
 /* ====================== events ====================== */
 document.addEventListener('click',e=>{
